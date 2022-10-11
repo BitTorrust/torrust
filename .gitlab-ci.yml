@@ -1,0 +1,18 @@
+default:
+  image: rust:latest
+
+cache:
+  paths:
+    - target/
+
+build-job:
+  stage: build
+  script:
+    - rustup component add rustfmt
+    - cargo fmt --check
+    - cargo build --release
+
+test-job:
+  stage: test
+  script:
+    - cargo test 

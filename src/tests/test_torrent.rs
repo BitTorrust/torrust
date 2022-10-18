@@ -15,7 +15,7 @@ mod tests {
         let mut bencode_object = Decoder::new(&buffer);
         let result = Torrent::from_bencode(&mut bencode_object);
 
-        match result {
+        return match result {
             Ok(torrent) => {
                 assert!(true);
                 println!("Print torrent struct {:?}", torrent);
@@ -23,10 +23,9 @@ mod tests {
                 assert_eq!(torrent.name(), "iceberg.jpg");
                 assert_eq!(torrent.announce(), "http://127.0.0.1:6969/announce");
                 assert_eq!(torrent.number_of_pieces(), 11);
+                Ok(())
             },
-            _ => assert!(false),
+            Err(e) => panic!("{:?}", e),
         }
-        
-        Ok(())
     }
 }

@@ -1,12 +1,8 @@
-#[derive(Debug)]
-pub enum Error {
-    FailedToOpenTorrentFile,
-    FailedToReadTorrentFile,
-    FailedToParserTorrentFile,
-}
-
 mod torrent;
 pub use torrent::Torrent;
+
+mod error;
+use error::Error;
 
 #[cfg(test)]
 mod tests;

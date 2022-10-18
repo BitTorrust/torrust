@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 mod torrent;
 pub use torrent::Torrent;
 

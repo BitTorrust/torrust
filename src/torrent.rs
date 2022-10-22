@@ -1,6 +1,6 @@
-use std::str::FromStr;
-use bendy::decoding::{Object, Decoder};
 use crate::Error;
+use bendy::decoding::{Decoder, Object};
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Torrent {
@@ -31,14 +31,16 @@ impl Torrent {
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     pub fn from_bencode(bencode_decoder: &mut Decoder) -> Result<Torrent, Error> {
         let mut announce = None;
         let mut piece_length_in_bytes = None;
         let mut total_length_in_bytes = None;
         let mut name = None;
 
-        let bencode_object = bencode_decoder.next_object().map_err(|_e| Error::FailedToParserTorrentFile)?;
+        let bencode_object = bencode_decoder
+            .next_object()
+            .map_err(|_e| Error::FailedToParserTorrentFile)?;
         match bencode_object {
             None => (), // EOF
             Some(Object::Dict(mut dict)) => {
@@ -46,64 +48,92 @@ impl Torrent {
                     let key = String::from_utf8(pair.0.to_vec()).unwrap();
 
                     // DEBUG
-                    println!("key: {:?}, type: {}", key, match pair.1 {
-                        Object::Bytes(_) => "Bytes",
-                        Object::List(_) => "List",
-                        Object::Dict(_) => "Dict",
-                        Object::Integer(_) => "Integer",                        
-                    });
-
+                    println!(
+                        "key: {:?}, type: {}",
+                        key,
+                        match pair.1 {
+                            Object::Bytes(_) => "Bytes",
+                            Object::List(_) => "List",
+                            Object::Dict(_) => "Dict",
+                            Object::Integer(_) => "Integer",
+                        }
+                    );
 
                     match key.as_str() {
-                        "announce" => announce = match pair.1 {
-                            Object::Bytes(byte) => Some(String::from_utf8(byte.to_vec()).unwrap()),
-                            _ => None
-                        },
+                        "announce" => {
+                            announce = match pair.1 {
+                                Object::Bytes(byte) => {
+                                    Some(String::from_utf8(byte.to_vec()).unwrap())
+                                }
+                                _ => None,
+                            }
+                        }
                         "info" => match pair.1 {
                             Object::Dict(mut info_dict) => {
                                 while let Ok(Some(info_pair)) = info_dict.next_pair() {
                                     let key = String::from_utf8(info_pair.0.to_vec()).unwrap();
-                                    
-                                    println!("info key: {:?}, type: {}", key, match info_pair.1 {
-                                        Object::Bytes(_) => "Bytes",
-                                        Object::List(_) => "List",
-                                        Object::Dict(_) => "Dict",
-                                        Object::Integer(_) => "Integer",                        
-                                    });
+
+                                    println!(
+                                        "info key: {:?}, type: {}",
+                                        key,
+                                        match info_pair.1 {
+                                            Object::Bytes(_) => "Bytes",
+                                            Object::List(_) => "List",
+                                            Object::Dict(_) => "Dict",
+                                            Object::Integer(_) => "Integer",
+                                        }
+                                    );
 
                                     match key.as_str() {
-                                        "piece length" => piece_length_in_bytes = match info_pair.1 {
-                                            Object::Integer(string) => Some(u32::from_str(string).unwrap()),
-                                            _ => None
-                                        },
-                                        "length" => total_length_in_bytes =  match info_pair.1 {
-                                            Object::Integer(string) => Some(u32::from_str(string).unwrap()),
-                                            _ => None
-                                        },
-                                        "name" => name = match info_pair.1 {
-                                            Object::Bytes(byte) => Some(String::from_utf8(byte.to_vec()).unwrap()),
-                                            _ => None
-                                        },
+                                        "piece length" => {
+                                            piece_length_in_bytes = match info_pair.1 {
+                                                Object::Integer(string) => {
+                                                    Some(u32::from_str(string).unwrap())
+                                                }
+                                                _ => None,
+                                            }
+                                        }
+                                        "length" => {
+                                            total_length_in_bytes = match info_pair.1 {
+                                                Object::Integer(string) => {
+                                                    Some(u32::from_str(string).unwrap())
+                                                }
+                                                _ => None,
+                                            }
+                                        }
+                                        "name" => {
+                                            name = match info_pair.1 {
+                                                Object::Bytes(byte) => {
+                                                    Some(String::from_utf8(byte.to_vec()).unwrap())
+                                                }
+                                                _ => None,
+                                            }
+                                        }
                                         _ => (),
                                     };
                                 }
-                            },
+                            }
                             _ => (),
                         },
                         _ => (),
                     };
                 }
-            },
+            }
             _ => (),
         };
         Ok(Torrent {
             announce: announce.expect("failed to parse announce field from the torrent file"),
-            piece_length_in_bytes: piece_length_in_bytes.expect("failed to parse announce field from the torrent file"),
-            number_of_pieces: div_ceil(total_length_in_bytes.expect("failed to parse announce field from the torrent file"),
-                piece_length_in_bytes.expect("failed to parse announce field from the torrent file")),
-            total_length_in_bytes: total_length_in_bytes.expect("failed to parse announce field from the torrent file"),
+            piece_length_in_bytes: piece_length_in_bytes
+                .expect("failed to parse announce field from the torrent file"),
+            number_of_pieces: div_ceil(
+                total_length_in_bytes
+                    .expect("failed to parse announce field from the torrent file"),
+                piece_length_in_bytes
+                    .expect("failed to parse announce field from the torrent file"),
+            ),
+            total_length_in_bytes: total_length_in_bytes
+                .expect("failed to parse announce field from the torrent file"),
             name: name.expect("failed to parse announce field from the torrent file"),
-
         })
     }
 }

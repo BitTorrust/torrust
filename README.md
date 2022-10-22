@@ -6,7 +6,8 @@ This projet is about implementing a Bit Torrent client.
 
 ## Requirements
 
-TODO
+Rust library:
+- [bendy](https://docs.rs/bendy/latest/bendy/) for Benncode parsing
 
 ## Development dependencies
 

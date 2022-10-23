@@ -36,24 +36,29 @@ impl TrackerRequest {
     }
 
     pub fn into_url(self, host: &str, port: u16) -> Url {
-        let url = format!("http://{host}:{port}/announce?info_hash={info_hash}&peer_id={peer_id}&port={client_port}&uploaded={uploaded}&downloaded={downloaded}&left={left}&compact={compact}",
-        host = host,
-        port = port,
-        info_hash = urlencoding::encode_binary(&self.info_hash),
-        peer_id = urlencoding::encode_binary(&self.peer_id),
-        client_port= self.port,
-        uploaded = self.uploaded,
-        downloaded = self.downloaded,
-        left = self.left,
-        compact = if self.compact { "1" } else { "0 "});
+        // TODO: stop wrapping here.
+        let mut url = Url::parse(&format!(
+            "http://{}:{}/announce?info_hash={}&peer_id={}",
+            host,
+            port,
+            urlencoding::encode_binary(&self.info_hash),
+            urlencoding::encode_binary(&self.peer_id),
+        ))
+        .unwrap();
 
-        let url_str = if let Some(event) = self.event {
-            format!("{}&event={}", url, event)
-        } else {
-            url
-        };
+        url.query_pairs_mut()
+            .append_pair("port", &format!("{}", self.port))
+            .append_pair("uploaded", &format!("{}", self.uploaded))
+            .append_pair("downloaded", &format!("{}", self.downloaded))
+            .append_pair("left", &format!("{}", self.left))
+            .append_pair("compact", if self.compact { "1" } else { "0" });
 
-        Url::parse(&url_str).unwrap()
+        if let Some(event) = self.event {
+            url.query_pairs_mut()
+                .append_pair("event", &event.to_string());
+        }
+
+        url
     }
 }
 

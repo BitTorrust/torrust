@@ -35,15 +35,7 @@ impl TrackerResponse {
         let mut decoder = Decoder::new(data);
         let object = decoder.next_object().unwrap().unwrap();
         let mut dictionary = object.dictionary_or_else(|_| Err(())).unwrap();
-
-        let mut response = Self {
-            failure: None,
-            complete: None,
-            downloaded: None,
-            incomplete: None,
-            interval: None,
-            peers: None,
-        };
+        let mut response = Self::empty();
 
         while let Ok(pair) = dictionary.next_pair() {
             match pair {
@@ -53,6 +45,17 @@ impl TrackerResponse {
         }
 
         response
+    }
+
+    fn empty() -> Self {
+        Self {
+            failure: None,
+            complete: None,
+            downloaded: None,
+            incomplete: None,
+            interval: None,
+            peers: None,
+        }
     }
 
     fn parse_pair(&mut self, pair: (&[u8], Object)) {
@@ -72,17 +75,11 @@ impl TrackerResponse {
             (b"peers", value) => {
                 self.peers.replace(Self::parse_peers(value));
             }
-            (b"failure reason", reason) => {
-                let error_message = str::from_utf8(reason.try_into_bytes().unwrap())
-                    .unwrap()
-                    .to_string();
-                self.failure.replace(error_message);
+            (b"failure reason", value) => {
+                self.failure.replace(Self::parse_failure(value));
             }
             (key, _) => {
-                log::warn!(
-                    "unhandled key [{}] on tracker response",
-                    str::from_utf8(key).unwrap()
-                );
+                log::warn!("unhandled parameter [{}]", str::from_utf8(key).unwrap());
             }
         }
     }
@@ -98,5 +95,11 @@ impl TrackerResponse {
             .chunks(6)
             .map(|chunk| Peer::from_bytes(chunk))
             .collect()
+    }
+
+    fn parse_failure(object: Object) -> String {
+        str::from_utf8(object.try_into_bytes().unwrap())
+            .unwrap()
+            .to_string()
     }
 }

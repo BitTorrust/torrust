@@ -5,22 +5,6 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct Peer {
-    socket_address: SocketAddrV4,
-}
-
-impl Peer {
-    pub fn from_bytes(chunk: &[u8]) -> Self {
-        let ip = Ipv4Addr::new(chunk[0], chunk[1], chunk[2], chunk[3]);
-        let port = (chunk[4] as u16 * 256) + chunk[5] as u16;
-
-        Peer {
-            socket_address: SocketAddrV4::new(ip, port),
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct TrackerResponse {
     failure: Option<String>,
     complete: Option<usize>,
@@ -101,5 +85,21 @@ impl TrackerResponse {
         str::from_utf8(object.try_into_bytes().unwrap())
             .unwrap()
             .to_string()
+    }
+}
+
+#[derive(Debug)]
+pub struct Peer {
+    socket_address: SocketAddrV4,
+}
+
+impl Peer {
+    pub fn from_bytes(chunk: &[u8]) -> Self {
+        let ip = Ipv4Addr::new(chunk[0], chunk[1], chunk[2], chunk[3]);
+        let port = (chunk[4] as u16 * 256) + chunk[5] as u16;
+
+        Peer {
+            socket_address: SocketAddrV4::new(ip, port),
+        }
     }
 }

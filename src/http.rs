@@ -6,7 +6,7 @@ pub use tracker_response::{Peer, TrackerResponse};
 
 #[cfg(test)]
 mod test {
-    use crate::http::{Event, TrackerRequest};
+    use crate::http::{Event, TrackerRequest, TrackerResponse};
 
     static INFO_ID: [u8; 20] = [
         0x06, 0x71, 0x33, 0xAC, 0xE5, 0xDD, 0x0C, 0x50, 0x27, 0xB9, 0x9D, 0xE5, 0xD4, 0xBA, 0x51,
@@ -44,7 +44,11 @@ mod test {
         let request = TrackerRequest::new(INFO_ID, PEER_ID, 6882, 0, 0, 356639, true, Some(event));
         let url = request.into_url(TRACKER_HOSTNAME, TRACKER_PORT);
 
-        let response = reqwest::blocking::get(url).unwrap();
-        println!("{:#?}", response.bytes());
+        let mut response = reqwest::blocking::get(url).unwrap();
+        let mut bencode = Vec::new();
+        response.copy_to(&mut bencode).unwrap();
+
+        let parsed_response = TrackerResponse::from_bencode(&bencode);
+        println!("{:?}", parsed_response);
     }
 }

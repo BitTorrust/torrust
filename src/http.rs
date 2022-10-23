@@ -45,9 +45,13 @@ mod test {
                                     &port=6882&uploaded=0&downloaded=0&left=356639&compact=1&event=completed");
     }
 
+    // This test is ignored because it requires a tracker running on 127.0.0.1:6969.
+    // It actually does not test anything, since the response has to be analysed
+    // manually and also depends on the file being served. I'm only keeping this
+    // test here until we finish the basic integration because it helps to manually
+    // inspect what the tracker is responding us.
     #[test]
     #[ignore]
-    // This test is ignored because it requires a tracker running on 127.0.0.1:6969
     fn tracker_http_request() {
         let event = Event::Started;
         let request = TrackerRequest::new(INFO_ID, PEER_ID, 6882, 0, 0, 356639, true, Some(event));

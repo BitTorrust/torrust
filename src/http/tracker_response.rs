@@ -21,77 +21,68 @@ impl Peer {
 }
 
 #[derive(Debug)]
-pub enum TrackerResponse {
-    Failure {
-        message: String,
-    },
-    Success {
-        complete: usize,
-        downloaded: usize,
-        incomplete: usize,
-        interval: usize,
-        peers: Vec<Peer>,
-    },
+pub struct TrackerResponse {
+    failure: Option<String>,
+    complete: Option<usize>,
+    downloaded: Option<usize>,
+    incomplete: Option<usize>,
+    interval: Option<usize>,
+    peers: Option<Vec<Peer>>,
 }
 
 impl TrackerResponse {
     pub fn from_bencode(data: &[u8]) -> Self {
-        println!("bencode: {}", unsafe { str::from_utf8_unchecked(data) });
-
         let mut decoder = Decoder::new(data);
         let object = decoder.next_object().unwrap().unwrap();
         let mut dictionary = object.dictionary_or_else(|_| Err(())).unwrap();
 
-        let mut complete = None;
-        let mut downloaded = None;
-        let mut incomplete = None;
-        let mut interval = None;
-        let mut peers = None;
-        let mut failure_reason = None;
+        let mut response = Self {
+            failure: None,
+            complete: None,
+            downloaded: None,
+            incomplete: None,
+            interval: None,
+            peers: None,
+        };
 
         while let Ok(pair) = dictionary.next_pair() {
             match pair {
-                Some((b"complete", value)) => {
-                    complete.replace(Self::parse_integer(value));
-                }
-                Some((b"downloaded", value)) => {
-                    downloaded.replace(Self::parse_integer(value));
-                }
-                Some((b"incomplete", value)) => {
-                    incomplete.replace(Self::parse_integer(value));
-                }
-                Some((b"interval", value)) => {
-                    interval.replace(Self::parse_integer(value));
-                }
-                Some((b"peers", value)) => {
-                    peers.replace(Self::parse_peers(value));
-                }
-                Some((b"failure reason", reason)) => {
-                    let error_message = str::from_utf8(reason.try_into_bytes().unwrap())
-                        .unwrap()
-                        .to_string();
-                    failure_reason.replace(error_message);
-                }
-                Some((key, _)) => {
-                    log::warn!(
-                        "unhandled key [{}] on tracker response",
-                        str::from_utf8(key).unwrap()
-                    );
-                }
+                Some(pair) => response.parse_pair(pair),
                 None => break,
             }
         }
 
-        if let Some(message) = failure_reason {
-            TrackerResponse::Failure { message }
-        } else {
-            TrackerResponse::Success {
-                // TODO: stop unwrapping here, some fields may not be available
-                complete: complete.unwrap(),
-                downloaded: downloaded.unwrap(),
-                incomplete: incomplete.unwrap(),
-                interval: interval.unwrap(),
-                peers: peers.unwrap(),
+        response
+    }
+
+    fn parse_pair(&mut self, pair: (&[u8], Object)) {
+        match pair {
+            (b"complete", value) => {
+                self.complete.replace(Self::parse_integer(value));
+            }
+            (b"downloaded", value) => {
+                self.downloaded.replace(Self::parse_integer(value));
+            }
+            (b"incomplete", value) => {
+                self.incomplete.replace(Self::parse_integer(value));
+            }
+            (b"interval", value) => {
+                self.interval.replace(Self::parse_integer(value));
+            }
+            (b"peers", value) => {
+                self.peers.replace(Self::parse_peers(value));
+            }
+            (b"failure reason", reason) => {
+                let error_message = str::from_utf8(reason.try_into_bytes().unwrap())
+                    .unwrap()
+                    .to_string();
+                self.failure.replace(error_message);
+            }
+            (key, _) => {
+                log::warn!(
+                    "unhandled key [{}] on tracker response",
+                    str::from_utf8(key).unwrap()
+                );
             }
         }
     }

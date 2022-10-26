@@ -1,7 +1,7 @@
 use crate::Error;
-use bendy::decoding::{Decoder, Object, DictDecoder};
+use bendy::decoding::{Decoder, DictDecoder, Object};
+use sha1::{Digest, Sha1};
 use std::str::FromStr;
-use sha1::{Sha1, Digest};
 
 #[derive(Debug)]
 pub struct Torrent {
@@ -44,10 +44,8 @@ impl Torrent {
             match key.as_str() {
                 "announce" => {
                     self.announce = match pair.1 {
-                        Object::Bytes(byte) => {
-                            Some(String::from_utf8(byte.to_vec()).unwrap())
-                        }
-                        _ => None
+                        Object::Bytes(byte) => Some(String::from_utf8(byte.to_vec()).unwrap()),
+                        _ => None,
                     }
                 }
                 "info" => match pair.1 {
@@ -56,37 +54,32 @@ impl Torrent {
 
                         // hash the info dictionnary
                         let mut hasher = Sha1::new();
-                        let raw_bytes = info_dict.into_raw()
+                        let raw_bytes = info_dict
+                            .into_raw()
                             .map_err(|_| Error::FailedToGetRawBytesFromInfoDict)?;
                         hasher.update(raw_bytes);
                         self.info_hash = Some(hasher.finalize().to_vec());
-                    },
+                    }
                     _ => (),
-                }
+                },
                 "piece length" => {
                     self.piece_length_in_bytes = match pair.1 {
-                        Object::Integer(string) => {
-                            Some(u32::from_str(string).unwrap())
-                        }
+                        Object::Integer(string) => Some(u32::from_str(string).unwrap()),
                         _ => None,
                     }
                 }
                 "length" => {
                     self.total_length_in_bytes = match pair.1 {
-                        Object::Integer(string) => {
-                            Some(u32::from_str(string).unwrap())
-                        }
+                        Object::Integer(string) => Some(u32::from_str(string).unwrap()),
                         _ => None,
                     }
                 }
                 "name" => {
                     self.name = match pair.1 {
-                        Object::Bytes(byte) => {
-                            Some(String::from_utf8(byte.to_vec()).unwrap())
-                        }
+                        Object::Bytes(byte) => Some(String::from_utf8(byte.to_vec()).unwrap()),
                         _ => None,
                     }
-                },
+                }
                 _ => (),
             }
         }
@@ -102,31 +95,30 @@ impl Torrent {
             name: None,
             info_hash: None,
         };
-    
+
         let bencode_object = bencode_decoder
             .next_object()
             .map_err(|_| Error::FailedToParseTorrentFile)?;
-    
+
         match bencode_object {
             Some(Object::Dict(mut dict_decoder)) => {
                 torrent_result.decode_dict(&mut dict_decoder)?;
-            },
+            }
             None => (), // EOF
             _ => (),
         };
-    
-        torrent_result.number_of_pieces = Some(
-            div_ceil(
-                match torrent_result.total_length_in_bytes() {
-                    Some(length) => length,
-                    None => return Err(Error::TotalPiecesLengthNotFoundDuringParsing),
-                },
-                match torrent_result.piece_length_in_bytes() {
-                    Some(piece_length) => piece_length,
-                    None => return Err(Error::SinglePieceLengthNotFoundDuringParsing)
-                })
-        );
-    
+
+        torrent_result.number_of_pieces = Some(div_ceil(
+            match torrent_result.total_length_in_bytes() {
+                Some(length) => length,
+                None => return Err(Error::TotalPiecesLengthNotFoundDuringParsing),
+            },
+            match torrent_result.piece_length_in_bytes() {
+                Some(piece_length) => piece_length,
+                None => return Err(Error::SinglePieceLengthNotFoundDuringParsing),
+            },
+        ));
+
         Ok(torrent_result)
     }
 }

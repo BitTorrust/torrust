@@ -1,3 +1,4 @@
+use crate::Error;
 use reqwest::Url;
 use std::fmt;
 
@@ -35,8 +36,7 @@ impl TrackerRequest {
         }
     }
 
-    pub fn into_url(self, host: &str, port: u16) -> Url {
-        // TODO: stop wrapping here.
+    pub fn into_url(self, host: &str, port: u16) -> Result<Url, Error> {
         let mut url = Url::parse(&format!(
             "http://{}:{}/announce?info_hash={}&peer_id={}",
             host,
@@ -44,8 +44,14 @@ impl TrackerRequest {
             urlencoding::encode_binary(&self.info_hash),
             urlencoding::encode_binary(&self.peer_id),
         ))
-        .unwrap();
+        .map_err(|_| Error::FailedToParseUrl)?;
 
+        self.append_parameters(&mut url);
+
+        Ok(url)
+    }
+
+    fn append_parameters(&self, url: &mut Url) {
         url.query_pairs_mut()
             .append_pair("port", &format!("{}", self.port))
             .append_pair("uploaded", &format!("{}", self.uploaded))
@@ -53,12 +59,10 @@ impl TrackerRequest {
             .append_pair("left", &format!("{}", self.left))
             .append_pair("compact", if self.compact { "1" } else { "0" });
 
-        if let Some(event) = self.event {
+        if let Some(event) = &self.event {
             url.query_pairs_mut()
                 .append_pair("event", &event.to_string());
         }
-
-        url
     }
 }
 

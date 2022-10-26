@@ -23,22 +23,25 @@ mod test {
 
     #[test]
     fn request_into_url() {
-        let request_builder =
-            |event| TrackerRequest::new(INFO_ID, PEER_ID, 6882, 0, 0, 356639, true, Some(event));
+        let url_builder = |event| {
+            TrackerRequest::new(INFO_ID, PEER_ID, 6882, 0, 0, 356639, true, Some(event))
+                .into_url(TRACKER_HOSTNAME, TRACKER_PORT)
+                .unwrap()
+        };
 
-        let url = request_builder(Event::Started).into_url(TRACKER_HOSTNAME, TRACKER_PORT);
+        let url = url_builder(Event::Started);
         assert_eq!(url.as_str(), "http://127.0.0.1:6969/announce?\
                                     info_hash=%06q3%AC%E5%DD%0CP%27%B9%9D%E5%D4%BAQ%28%28%20%8D%5B\
                                     &peer_id=%DE%AD%BE%EF%BA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AD\
                                     &port=6882&uploaded=0&downloaded=0&left=356639&compact=1&event=started");
 
-        let url = request_builder(Event::Stopped).into_url(TRACKER_HOSTNAME, TRACKER_PORT);
+        let url = url_builder(Event::Stopped);
         assert_eq!(url.as_str(), "http://127.0.0.1:6969/announce?\
                                     info_hash=%06q3%AC%E5%DD%0CP%27%B9%9D%E5%D4%BAQ%28%28%20%8D%5B\
                                     &peer_id=%DE%AD%BE%EF%BA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AD\
                                     &port=6882&uploaded=0&downloaded=0&left=356639&compact=1&event=stopped");
 
-        let url = request_builder(Event::Completed).into_url(TRACKER_HOSTNAME, TRACKER_PORT);
+        let url = url_builder(Event::Completed);
         assert_eq!(url.as_str(), "http://127.0.0.1:6969/announce?\
                                     info_hash=%06q3%AC%E5%DD%0CP%27%B9%9D%E5%D4%BAQ%28%28%20%8D%5B\
                                     &peer_id=%DE%AD%BE%EF%BA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AA%AD\
@@ -55,7 +58,7 @@ mod test {
     fn tracker_http_request() {
         let event = Event::Started;
         let request = TrackerRequest::new(INFO_ID, PEER_ID, 6882, 0, 0, 356639, true, Some(event));
-        let url = request.into_url(TRACKER_HOSTNAME, TRACKER_PORT);
+        let url = request.into_url(TRACKER_HOSTNAME, TRACKER_PORT).unwrap();
 
         let mut response = reqwest::blocking::get(url).unwrap();
         let mut bencode = Vec::new();

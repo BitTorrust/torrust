@@ -6,4 +6,5 @@ pub enum Error {
     FailedToGetRawBytesFromInfoDict,
     TotalPiecesLengthNotFoundDuringParsing,
     SinglePieceLengthNotFoundDuringParsing,
+    FailedToParseUrl,
 }

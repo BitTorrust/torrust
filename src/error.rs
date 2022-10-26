@@ -2,5 +2,8 @@
 pub enum Error {
     FailedToOpenTorrentFile,
     FailedToReadTorrentFile,
-    FailedToParserTorrentFile,
+    FailedToParseTorrentFile,
+    FailedToGetRawBytesFromInfoDict,
+    TotalPiecesLengthNotFoundDuringParsing,
+    SinglePieceLengthNotFoundDuringParsing,
 }

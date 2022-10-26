@@ -1,2 +1,2 @@
 #[cfg(test)]
-mod test_torrent;
+pub mod torrent;

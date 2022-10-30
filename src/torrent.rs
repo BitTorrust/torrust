@@ -57,7 +57,10 @@ impl Torrent {
                         let raw_bytes = info_dict
                             .into_raw()
                             .map_err(|_| Error::FailedToGetRawBytesFromInfoDict)?;
-                        println!("info_dict's bytes: {:?}", String::from_utf8(raw_bytes.to_vec()));
+                        println!(
+                            "info_dict's bytes: {:?}",
+                            String::from_utf8(raw_bytes.to_vec())
+                        );
                         hasher.update(raw_bytes);
                         println!("{:?}", &hasher.finalize().to_vec());
                         // self.info_hash = Some(

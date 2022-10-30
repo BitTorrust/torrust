@@ -24,7 +24,7 @@ pub mod torrent {
                     "http://127.0.0.1:6969/announce"
                 );
                 assert_eq!(torrent.number_of_pieces().unwrap(), 11);
-                //assert_eq!(String::from_utf8(*torrent.info_hash().unwrap()).unwrap().make_ascii_lowercase(), "067133ace5dd0c5027b99de5d4ba512828208d5b");
+                // assert_eq!(String::from_utf8(*torrent.info_hash().unwrap()).unwrap(), "067133ace5dd0c5027b99de5d4ba512828208d5b");
                 // TODO
                 Ok(())
             }

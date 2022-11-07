@@ -1,3 +1,4 @@
+use crate::pwp::ByteConvertable;
 use crate::pwp::MessageType;
 
 #[derive(Debug)]
@@ -13,8 +14,10 @@ impl NotIterested {
             message_type: MessageType::NotIterested.into_u8(),
         }
     }
+}
 
-    pub fn into_bytes(self) -> Vec<u8> {
+impl ByteConvertable for NotIterested {
+    fn into_bytes(self) -> Vec<u8> {
         let mut serialized_message: Vec<u8> = Vec::new();
         serialized_message.extend(self.message_length.to_be_bytes());
         serialized_message.push(self.message_type);

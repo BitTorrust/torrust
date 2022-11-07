@@ -1,3 +1,4 @@
+use crate::pwp::ByteConvertable;
 use crate::pwp::MessageType;
 
 #[derive(Debug)]
@@ -15,8 +16,10 @@ impl Have {
             piece_index,
         }
     }
+}
 
-    pub fn into_bytes(self) -> Vec<u8> {
+impl ByteConvertable for Have {
+    fn into_bytes(self) -> Vec<u8> {
         let mut serialized_message: Vec<u8> = Vec::new();
         serialized_message.extend(self.message_length.to_be_bytes());
         serialized_message.push(self.message_type);

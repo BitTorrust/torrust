@@ -10,7 +10,7 @@ pub struct Torrent {
     number_of_pieces: Option<u32>,
     total_length_in_bytes: Option<u32>,
     name: Option<String>,
-    info_hash: Option<String>,
+    info_hash: Option<Vec<u8>>,         // a 160-bit (20-byte)
 }
 
 impl Torrent {
@@ -34,8 +34,8 @@ impl Torrent {
         self.name.as_ref()
     }
 
-    pub fn info_hash(&self) -> Option<&String> {
-        self.info_hash.as_ref()
+    pub fn info_hash(&self) -> Option<Vec<u8>> {
+        self.info_hash.clone()
     }
 
     pub fn decode_dict(&mut self, dict: &mut DictDecoder) -> Result<(), Error> {
@@ -57,22 +57,11 @@ impl Torrent {
                         let raw_bytes = info_dict
                             .into_raw()
                             .map_err(|_| Error::FailedToGetRawBytesFromInfoDict)?;
-                        println!(
-                            "info_dict's bytes: {:?}",
-                            String::from_utf8(raw_bytes.to_vec())
-                        );
                         hasher.update(raw_bytes);
-                        println!("{:?}", &hasher.finalize().to_vec());
-                        // self.info_hash = Some(
-                        //     String::from(
-                        //             encode(
-                        //                 std::str::from_utf8(&
-                        //                 hasher.finalize().to_vec()
-                        //             ).unwrap()
-                        //         )
-                        //     )
-                        // );
-                        // println!("info_hash {:?}", self.info_hash);
+                        let myvec = &hasher.finalize().to_vec();
+                        println!("myvec: {:x?}", myvec);
+                        self.info_hash = Some(myvec.clone());
+                        println!("info_hash {:?}", self.info_hash);
                     }
                     _ => (),
                 },

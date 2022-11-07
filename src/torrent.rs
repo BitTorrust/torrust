@@ -10,7 +10,7 @@ pub struct Torrent {
     number_of_pieces: Option<u32>,
     total_length_in_bytes: Option<u32>,
     name: Option<String>,
-    info_hash: Option<Vec<u8>>,         // a 160-bit (20-byte)
+    info_hash: Option<Vec<u8>>, // a 160-bit (20-byte)
 }
 
 impl Torrent {

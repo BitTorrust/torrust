@@ -16,16 +16,19 @@ pub mod torrent {
 
         match maybe_torrent {
             Ok(torrent) => {
-                println!("Print torrent struct {:?}", torrent);
-
                 assert_eq!(torrent.name().unwrap(), "iceberg.jpg");
                 assert_eq!(
                     torrent.announce().unwrap(),
                     "http://127.0.0.1:6969/announce"
                 );
                 assert_eq!(torrent.number_of_pieces().unwrap(), 11);
-                // assert_eq!(String::from_utf8(*torrent.info_hash().unwrap()).unwrap(), "067133ace5dd0c5027b99de5d4ba512828208d5b");
-                // TODO
+                assert_eq!(
+                    torrent.info_hash().unwrap(),
+                    vec![
+                        0x06, 0x71, 0x33, 0xac, 0xe5, 0xdd, 0x0c, 0x50, 0x27, 0xb9, 0x9d, 0xe5,
+                        0xd4, 0xba, 0x51, 0x28, 0x28, 0x20, 0x8d, 0x5b
+                    ]
+                );
                 Ok(())
             }
             Err(e) => Err(e),

@@ -1,8 +1,9 @@
 mod torrent;
 pub use torrent::Torrent;
-
 mod error;
-use error::Error;
+pub use error::Error;
+
+mod http;
 
 mod cli;
 

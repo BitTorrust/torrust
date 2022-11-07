@@ -4,6 +4,10 @@
 
 This projet is about implementing a Bit Torrent client.
 
+## Requirements
+
+- libssl-dev: necessary for the `reqwest` crate
+
 ## Development dependencies
 
 All development dependencies are expected to be installed and in your path.

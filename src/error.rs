@@ -6,4 +6,8 @@ pub enum Error {
     FailedToGetRawBytesFromInfoDict,
     TotalPiecesLengthNotFoundDuringParsing,
     SinglePieceLengthNotFoundDuringParsing,
+    FailedToParseUrl,
+    BencodeObjectHasUnexpectedType,
+    UnexpectedResponseFromTracker,
+    TrackerFailureMessageContainsNonUtf8Characters,
 }

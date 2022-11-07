@@ -22,4 +22,8 @@ impl Request {
             piece_length,
         }
     }
+
+    pub fn into_bytes() -> Vec<u8> {
+        unimplemented!();
+    }
 }

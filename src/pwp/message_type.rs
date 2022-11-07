@@ -12,7 +12,7 @@ impl MessageType {
     }
 
     /// Length of the message without variable size field taken in account
-    pub fn base_length(self) -> u32{
+    pub fn base_length(self) -> u32 {
         match self {
             MessageType::Request => 13,
             MessageType::Piece => 9,

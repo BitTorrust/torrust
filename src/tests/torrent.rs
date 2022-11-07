@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod torrent {
+pub mod test {
     use crate::{Error, Torrent};
     use bendy::decoding::Decoder;
     use std::{fs::File, io::Read, path::Path};

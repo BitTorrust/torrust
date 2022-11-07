@@ -1,10 +1,10 @@
 #[cfg(test)]
-pub mod pwp {
+pub mod test {
     //TODO test pieces, then implement request into_bytes and test it
     use crate::pwp::{Piece, Request};
     use std::{fs::File, io::Read, path::Path};
     #[test]
-    pub fn format_piece_message_into_bytes() {
+    pub fn format_pwp_piece_message_into_bytes() {
         let data_filepath =
             Path::new("samples/peer_wire_protocol-messages/data_pieces_bytes_in_hex.bin");
         let mut data_file = File::open(data_filepath).unwrap();
@@ -19,5 +19,17 @@ pub mod pwp {
         let mut message_buffer: Vec<u8> = Vec::new();
         message_file.read_to_end(&mut message_buffer).unwrap();
         assert_eq!(piece_message.into_bytes(), message_buffer,);
+    }
+
+    #[test]
+    pub fn format_pwp_request_message_into_bytes() {
+        let request_message = Request::new(6, 0, 0x4000);
+
+        let message_filepath =
+            Path::new("samples/peer_wire_protocol-messages/expected_request_bytes_in_hex.bin");
+        let mut message_file = File::open(message_filepath).unwrap();
+        let mut message_buffer: Vec<u8> = Vec::new();
+        message_file.read_to_end(&mut message_buffer).unwrap();
+        assert_eq!(request_message.into_bytes(), message_buffer,);
     }
 }

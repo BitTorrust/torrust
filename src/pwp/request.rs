@@ -23,7 +23,13 @@ impl Request {
         }
     }
 
-    pub fn into_bytes() -> Vec<u8> {
-        unimplemented!();
+    pub fn into_bytes(self) -> Vec<u8> {
+        let mut serialized_message: Vec<u8> = Vec::new();
+        serialized_message.extend(self.message_length.to_be_bytes());
+        serialized_message.push(self.message_type);
+        serialized_message.extend(self.piece_index.to_be_bytes());
+        serialized_message.extend(self.begin_offset.to_be_bytes());
+        serialized_message.extend(self.piece_length.to_be_bytes());
+        serialized_message
     }
 }

@@ -4,10 +4,6 @@
 
 This projet is about implementing a Bit Torrent client.
 
-## Requirements
-
-TODO
-
 ## Development dependencies
 
 All development dependencies are expected to be installed and in your path.

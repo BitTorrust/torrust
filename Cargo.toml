@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 clap = {version = "4.0", features = ["derive"]}
+bendy = "0.3"
+sha1 = "0.10"
+urlencoding = "2.0" 

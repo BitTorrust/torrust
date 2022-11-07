@@ -5,6 +5,8 @@ pub use error::Error;
 
 mod http;
 
+mod pwp;
+
 mod cli;
 
 use clap::Parser;

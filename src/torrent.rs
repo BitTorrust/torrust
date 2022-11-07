@@ -58,10 +58,8 @@ impl Torrent {
                             .into_raw()
                             .map_err(|_| Error::FailedToGetRawBytesFromInfoDict)?;
                         hasher.update(raw_bytes);
-                        let myvec = &hasher.finalize().to_vec();
-                        println!("myvec: {:x?}", myvec);
-                        self.info_hash = Some(myvec.clone());
-                        println!("info_hash {:?}", self.info_hash);
+                        let hash = &hasher.finalize().to_vec();
+                        self.info_hash = Some(hash.clone());
                     }
                     _ => (),
                 },

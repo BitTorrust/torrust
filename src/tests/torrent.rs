@@ -16,8 +16,6 @@ pub mod torrent {
 
         match maybe_torrent {
             Ok(torrent) => {
-                println!("Print torrent struct {:?}", torrent);
-
                 assert_eq!(torrent.name().unwrap(), "iceberg.jpg");
                 assert_eq!(
                     torrent.announce().unwrap(),

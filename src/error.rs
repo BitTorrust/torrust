@@ -7,4 +7,7 @@ pub enum Error {
     TotalPiecesLengthNotFoundDuringParsing,
     SinglePieceLengthNotFoundDuringParsing,
     FailedToParseUrl,
+    BencodeObjectHasUnexpectedType,
+    UnexpectedResponseFromTracker,
+    TrackerFailureMessageContainsNonUtf8Characters,
 }

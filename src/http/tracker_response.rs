@@ -1,7 +1,11 @@
-use bendy::decoding::{Decoder, Object};
-use std::{
-    net::{Ipv4Addr, SocketAddrV4},
-    str,
+use crate::Error;
+
+use {
+    bendy::decoding::{Decoder, Object},
+    std::{
+        net::{Ipv4Addr, SocketAddrV4},
+        str,
+    },
 };
 
 #[derive(Debug)]
@@ -15,20 +19,25 @@ pub struct TrackerResponse {
 }
 
 impl TrackerResponse {
-    pub fn from_bencode(data: &[u8]) -> Self {
+    pub fn from_bencode(data: &[u8]) -> Result<Self, Error> {
         let mut decoder = Decoder::new(data);
-        let object = decoder.next_object().unwrap().unwrap();
-        let mut dictionary = object.dictionary_or_else(|_| Err(())).unwrap();
+        let object = decoder
+            .next_object()
+            .map_err(|_| Error::UnexpectedResponseFromTracker)?
+            .ok_or(Error::UnexpectedResponseFromTracker)?;
+
+        let mut dictionary =
+            object.dictionary_or_else(|_| Err(Error::UnexpectedResponseFromTracker))?;
         let mut response = Self::empty();
 
         while let Ok(pair) = dictionary.next_pair() {
             match pair {
-                Some(pair) => response.parse_pair(pair),
+                Some(pair) => response.parse_pair(pair)?,
                 None => break,
             }
         }
 
-        response
+        Ok(response)
     }
 
     fn empty() -> Self {
@@ -42,49 +51,65 @@ impl TrackerResponse {
         }
     }
 
-    fn parse_pair(&mut self, pair: (&[u8], Object)) {
+    fn parse_pair(&mut self, pair: (&[u8], Object)) -> Result<(), Error> {
         match pair {
             (b"complete", value) => {
-                self.complete.replace(Self::parse_integer(value));
+                self.complete.replace(Self::parse_integer(value)?);
             }
             (b"downloaded", value) => {
-                self.downloaded.replace(Self::parse_integer(value));
+                self.downloaded.replace(Self::parse_integer(value)?);
             }
             (b"incomplete", value) => {
-                self.incomplete.replace(Self::parse_integer(value));
+                self.incomplete.replace(Self::parse_integer(value)?);
             }
             (b"interval", value) => {
-                self.interval.replace(Self::parse_integer(value));
+                self.interval.replace(Self::parse_integer(value)?);
             }
             (b"peers", value) => {
-                self.peers.replace(Self::parse_peers(value));
+                self.peers.replace(Self::parse_peers(value)?);
             }
             (b"failure reason", value) => {
-                self.failure.replace(Self::parse_failure(value));
+                self.failure.replace(Self::parse_failure(value)?);
             }
             (key, _) => {
                 log::warn!("unhandled parameter [{}]", str::from_utf8(key).unwrap());
             }
         }
+
+        Ok(())
     }
 
-    fn parse_integer(object: Object) -> usize {
-        object.try_into_integer().unwrap().parse().unwrap()
+    fn parse_integer(object: Object) -> Result<usize, Error> {
+        let integer = object
+            .try_into_integer()
+            .map_err(|_| Error::BencodeObjectHasUnexpectedType)?
+            .parse()
+            .unwrap();
+
+        Ok(integer)
     }
 
-    fn parse_peers(object: Object) -> Vec<Peer> {
-        object
+    fn parse_peers(object: Object) -> Result<Vec<Peer>, Error> {
+        let peers = object
             .try_into_bytes()
-            .unwrap()
+            .map_err(|_| Error::BencodeObjectHasUnexpectedType)?
             .chunks(6)
             .map(|chunk| Peer::from_bytes(chunk))
-            .collect()
+            .collect();
+
+        Ok(peers)
     }
 
-    fn parse_failure(object: Object) -> String {
-        str::from_utf8(object.try_into_bytes().unwrap())
-            .unwrap()
-            .to_string()
+    fn parse_failure(object: Object) -> Result<String, Error> {
+        let failure_message = str::from_utf8(
+            object
+                .try_into_bytes()
+                .map_err(|_| Error::BencodeObjectHasUnexpectedType)?,
+        )
+        .map_err(|_| Error::TrackerFailureMessageContainsNonUtf8Characters)?
+        .to_string();
+
+        Ok(failure_message)
     }
 }
 

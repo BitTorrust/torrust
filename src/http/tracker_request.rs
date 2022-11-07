@@ -1,6 +1,4 @@
-use crate::Error;
-use reqwest::Url;
-use std::fmt;
+use {crate::Error, reqwest::Url, std::fmt};
 
 pub struct TrackerRequest {
     info_hash: [u8; 20],

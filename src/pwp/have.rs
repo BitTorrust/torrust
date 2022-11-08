@@ -1,6 +1,4 @@
-use crate::pwp::ByteConvertable;
-use crate::pwp::MessageType;
-
+use crate::pwp::{IntoBytes, MessageType};
 #[derive(Debug)]
 pub struct Have {
     message_length: u32,
@@ -18,7 +16,7 @@ impl Have {
     }
 }
 
-impl ByteConvertable for Have {
+impl IntoBytes for Have {
     fn into_bytes(self) -> Vec<u8> {
         let mut serialized_message: Vec<u8> = Vec::new();
         serialized_message.extend(self.message_length.to_be_bytes());

@@ -9,5 +9,5 @@ pub use have::Have;
 pub use message_type::MessageType;
 pub use not_interested::NotIterested;
 pub use piece::Piece;
-pub use pwp_message::ByteConvertable;
+pub use pwp_message::IntoBytes;
 pub use request::Request;

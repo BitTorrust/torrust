@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod unittest {
-    use crate::pwp::{ByteConvertable, Have, NotIterested, Piece, Request};
+    use crate::pwp::{Have, IntoBytes, NotIterested, Piece, Request};
     use std::{fs::File, io::Read, path::Path};
     #[test]
     pub fn piece_message_into_bytes() {

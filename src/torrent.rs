@@ -10,7 +10,7 @@ pub struct Torrent {
     number_of_pieces: Option<u32>,
     total_length_in_bytes: Option<u32>,
     name: Option<String>,
-    info_hash: Option<Vec<u8>>, // a 160-bit (20-byte)
+    info_hash: Option<[u8; 20]>, // a 160-bit (20-byte)
 }
 
 impl Torrent {
@@ -34,7 +34,7 @@ impl Torrent {
         self.name.as_ref()
     }
 
-    pub fn info_hash(&self) -> Option<Vec<u8>> {
+    pub fn info_hash(&self) -> Option<[u8; 20]> {
         self.info_hash.clone()
     }
 
@@ -58,8 +58,9 @@ impl Torrent {
                             .into_raw()
                             .map_err(|_| Error::FailedToGetRawBytesFromInfoDict)?;
                         hasher.update(raw_bytes);
-                        let hash = &hasher.finalize().to_vec();
-                        self.info_hash = Some(hash.clone());
+                        let hash_vec = hasher.finalize().to_vec();
+                        let hash: [u8; 20] = hash_vec.try_into().clone().unwrap();
+                        self.info_hash = Some(hash);
                     }
                     _ => (),
                 },

@@ -5,6 +5,7 @@ pub enum MessageType {
     Piece,
 }
 
+// Documentation for message: https://wiki.theory.org/BitTorrentSpecification#Messages
 impl MessageType {
     pub fn into_u8(self) -> u8 {
         match self {

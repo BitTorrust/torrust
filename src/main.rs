@@ -3,13 +3,10 @@ pub use torrent::Torrent;
 mod error;
 pub use error::Error;
 
-mod http;
-
-mod pwp;
-mod cli; // why is it necessary to declare the mod here and not in app
-
-
 mod app;
+mod cli; // why is it necessary to declare the mod here and not in app
+mod http;
+mod pwp;
 
 #[cfg(test)]
 mod tests;
@@ -19,9 +16,5 @@ fn main() -> Result<(), Error> {
 
     // Main program
     println!("{:?}", response);
-
     Ok(())
-
 }
-
-

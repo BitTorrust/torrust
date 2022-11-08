@@ -1,3 +1,4 @@
+mod bitfield;
 mod handshake;
 mod have;
 mod into_bytes;
@@ -6,6 +7,7 @@ mod not_interested;
 mod piece;
 mod request;
 
+pub use bitfield::Bitfield;
 pub use handshake::Handshake;
 pub use have::Have;
 pub use into_bytes::IntoBytes;

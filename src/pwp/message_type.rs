@@ -3,6 +3,7 @@ pub enum MessageType {
     Have,
     Request,
     Piece,
+    Bitfield,
 }
 
 // Documentation for message: https://wiki.theory.org/BitTorrentSpecification#Messages
@@ -11,6 +12,7 @@ impl MessageType {
         match self {
             MessageType::NotIterested => 3,
             MessageType::Have => 4,
+            MessageType::Bitfield => 5,
             MessageType::Request => 6,
             MessageType::Piece => 7,
         }
@@ -21,6 +23,7 @@ impl MessageType {
         match self {
             MessageType::NotIterested => 1,
             MessageType::Have => 5,
+            MessageType::Bitfield => 1,
             MessageType::Request => 13,
             MessageType::Piece => 9,
         }

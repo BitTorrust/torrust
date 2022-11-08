@@ -1,9 +1,9 @@
 #[cfg(test)]
-pub mod test {
+pub mod unittest {
     use crate::pwp::{ByteConvertable, Have, NotIterested, Piece, Request};
     use std::{fs::File, io::Read, path::Path};
     #[test]
-    pub fn message_into_bytes() {
+    pub fn piece_message_into_bytes() {
         // Init Piece struct
         let data_filepath =
             Path::new("samples/peer_wire_protocol-messages/data_pieces_bytes_in_hex.bin");

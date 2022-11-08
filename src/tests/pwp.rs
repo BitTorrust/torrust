@@ -63,9 +63,9 @@ pub mod unittest {
 
     #[test]
     pub fn piece_message_into_bytes() {
-        let data = read_bytes_from(&path_builder("pieces_data.bin"));
+        let data = read_bytes_from(&path_builder("piece_data.bin"));
         let piece_message_to_test = Piece::new(6, 0, data);
-        let expected_bytes = read_bytes_from(&path_builder("pieces.bin"));
+        let expected_bytes = read_bytes_from(&path_builder("piece.bin"));
 
         assert_eq!(piece_message_to_test.into_bytes(), expected_bytes);
     }

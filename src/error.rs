@@ -24,10 +24,14 @@ pub enum Error {
     BytesArrayTooShort,
     MessageTypeDoesNotMatchWithExpectedOne,
     // For request message
-    FailedToParseBitTorrentRequestPieceIndex,
-    FailedToParseBitTorrentRequestBeginOffset,
-    FailedToParseBitTorrentRequestPieceLength,
-
+    FailedToParseBitTorrentRequestMessagePieceIndex,
+    FailedToParseBitTorrentRequestMessageBeginOffset,
+    FailedToParseBitTorrentRequestMessagePieceLength,
+    // For piece message
+    FailedToParseBitTorrentPieceMessagePieceIndex,
+    FailedToParseBitTorrentPieceMessageBeginOffset,
+    FailedToParseBitTorrentPieceMessagePieceLength,
+    
     // TCP error
     FailedToConnectToPeer,
 

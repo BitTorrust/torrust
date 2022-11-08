@@ -95,19 +95,31 @@ impl FromBytes for Request {
         let piece_index = u32::from_be_bytes(
             bytes[5..9]
                 .try_into()
+<<<<<<< HEAD
                 .map_err(|_| Error::FailedToParseBitTorrentRequestPieceIndex)?,
+=======
+                .map_err(|_| Error::FailedToParseBitTorrentRequestMessagePieceIndex)?,
+>>>>>>> wip pieces copy trait
         );
 
         let begin_offset = u32::from_be_bytes(
             bytes[9..13]
                 .try_into()
+<<<<<<< HEAD
                 .map_err(|_| Error::FailedToParseBitTorrentRequestBeginOffset)?,
+=======
+                .map_err(|_| Error::FailedToParseBitTorrentRequestMessageBeginOffset)?,
+>>>>>>> wip pieces copy trait
         );
 
         let piece_length = u32::from_be_bytes(
             bytes[13..17]
                 .try_into()
+<<<<<<< HEAD
                 .map_err(|_| Error::FailedToParseBitTorrentRequestPieceLength)?,
+=======
+                .map_err(|_| Error::FailedToParseBitTorrentRequestMessagePieceLength)?,
+>>>>>>> wip pieces copy trait
         );
 
         Ok(Self {

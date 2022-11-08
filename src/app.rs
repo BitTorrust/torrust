@@ -67,7 +67,6 @@ pub fn send_request(
     let mut bencode = Vec::new();
     response.copy_to(&mut bencode).unwrap();
     let parsed_response = TrackerResponse::from_bencode(&bencode);
-
     return parsed_response;
 }
 

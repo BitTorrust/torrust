@@ -10,7 +10,7 @@ impl Have {
     pub fn new(piece_index: u32) -> Self {
         Self {
             message_length: MessageType::Have.base_length(),
-            message_type: MessageType::Have.into_u8(),
+            message_type: MessageType::Have.id(),
             piece_index,
         }
     }

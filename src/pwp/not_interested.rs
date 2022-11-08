@@ -10,7 +10,7 @@ impl NotIterested {
     pub fn new() -> Self {
         Self {
             message_length: MessageType::NotIterested.base_length(),
-            message_type: MessageType::NotIterested.into_u8(),
+            message_type: MessageType::NotIterested.id(),
         }
     }
 }

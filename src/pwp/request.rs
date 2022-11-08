@@ -16,7 +16,7 @@ impl Request {
     pub fn new(piece_index: u32, begin_offset: u32, piece_length: u32) -> Self {
         Self {
             message_length: MessageType::Request.base_length(),
-            message_type: MessageType::Request.into_u8(),
+            message_type: MessageType::Request.id(),
             piece_index,
             begin_offset,
             piece_length,

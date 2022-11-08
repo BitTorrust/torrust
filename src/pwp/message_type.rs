@@ -7,7 +7,7 @@ pub enum MessageType {
 
 // Documentation for message: https://wiki.theory.org/BitTorrentSpecification#Messages
 impl MessageType {
-    pub fn into_u8(self) -> u8 {
+    pub fn id(self) -> u8 {
         match self {
             MessageType::NotIterested => 3,
             MessageType::Have => 4,

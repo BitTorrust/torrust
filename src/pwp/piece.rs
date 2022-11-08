@@ -16,7 +16,7 @@ impl Piece {
     pub fn new(piece_index: u32, begin_offset_of_piece: u32, data: Vec<u8>) -> Self {
         Self {
             message_length: MessageType::Piece.base_length() + data.len() as u32,
-            message_type: MessageType::Piece.into_u8(),
+            message_type: MessageType::Piece.id(),
             piece_index,
             begin_offset_of_piece,
             data,

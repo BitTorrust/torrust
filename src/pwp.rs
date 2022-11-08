@@ -1,12 +1,13 @@
 mod bitfield;
 mod handshake;
 mod have;
+mod interested;
 mod into_bytes;
 mod message_type;
 mod not_interested;
 mod piece;
 mod request;
-mod interested;
+mod unchoke;
 
 pub use bitfield::Bitfield;
 pub use handshake::Handshake;
@@ -16,3 +17,4 @@ pub use message_type::MessageType;
 pub use not_interested::NotIterested;
 pub use piece::Piece;
 pub use request::Request;
+pub use unchoke::Unchoke;

@@ -1,4 +1,5 @@
 pub enum MessageType {
+    Unchoke,
     Interested,
     NotIterested,
     Have,
@@ -11,6 +12,7 @@ pub enum MessageType {
 impl MessageType {
     pub fn id(self) -> u8 {
         match self {
+            MessageType::Unchoke => 1,
             MessageType::Interested => 2,
             MessageType::NotIterested => 3,
             MessageType::Have => 4,
@@ -23,6 +25,7 @@ impl MessageType {
     /// Length of the message without variable size field taken in account
     pub fn base_length(self) -> u32 {
         match self {
+            MessageType::Unchoke => 1,
             MessageType::Interested => 1,
             MessageType::NotIterested => 1,
             MessageType::Have => 5,

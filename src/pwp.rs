@@ -6,6 +6,7 @@ mod message_type;
 mod not_interested;
 mod piece;
 mod request;
+mod interested;
 
 pub use bitfield::Bitfield;
 pub use handshake::Handshake;

@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod unittest {
-    use crate::pwp::{Have, IntoBytes, NotIterested, Piece, Request};
+    use crate::pwp::{Have, IntoBytes, NotIterested, Piece, Request, Unchoke};
     use std::{fs::File, io::Read, path::Path};
 
     fn read_bytes_from(pathfile: &str) -> Vec<u8> {
@@ -9,6 +9,16 @@ pub mod unittest {
         let mut data_buffer: Vec<u8> = Vec::new();
         data_file.read_to_end(&mut data_buffer).unwrap();
         data_buffer
+    }
+
+    #[test]
+    pub fn unchoke_message_into_bytes() {
+        let expected = read_bytes_from(
+            "samples/peer_wire_protocol-messages/expected_unchoke_bytes_in_hex.bin",
+        );
+        let unchoke_message = Unchoke::new();
+
+        assert_eq!(unchoke_message.into_bytes(), expected);
     }
 
     #[test]

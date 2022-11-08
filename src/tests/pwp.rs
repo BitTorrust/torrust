@@ -1,10 +1,20 @@
 #[cfg(test)]
 pub mod unittest {
     use crate::pwp::{
-        Bitfield, Have, Interested, IntoBytes, NotIterested, Piece, Request, Unchoke,
+        Bitfield, Handshake, Have, Interested, IntoBytes, NotIterested, Piece, Request, Unchoke,
     };
     use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
+
+    const INFO_ID: [u8; 20] = [
+        0x06, 0x71, 0x33, 0xac, 0xe5, 0xdd, 0x0c, 0x50, 0x27, 0xb9, 0x9d, 0xe5, 0xd4, 0xba, 0x51,
+        0x28, 0x28, 0x20, 0x8d, 0x5b,
+    ];
+
+    const PEER_ID: [u8; 20] = [
+        0x2d, 0x42, 0x45, 0x30, 0x30, 0x30, 0x31, 0x2d, 0x6e, 0x9a, 0xb4, 0x40, 0x2c, 0x62, 0x2e,
+        0x2e, 0x7a, 0x71, 0x5d, 0x9d,
+    ];
 
     fn read_bytes_from(pathfile: &str) -> Vec<u8> {
         let data_filepath = Path::new(pathfile);
@@ -12,6 +22,16 @@ pub mod unittest {
         let mut data_buffer: Vec<u8> = Vec::new();
         data_file.read_to_end(&mut data_buffer).unwrap();
         data_buffer
+    }
+
+    #[test]
+    pub fn handshake_message_into_bytes() {
+        let expected = read_bytes_from(
+            "samples/peer_wire_protocol-messages/expected_handshake_bytes_in_hex.bin",
+        );
+        let handshake_bytes = Handshake::new(INFO_ID, PEER_ID);
+
+        assert_eq!(handshake_bytes.into_bytes(), expected);
     }
 
     #[test]

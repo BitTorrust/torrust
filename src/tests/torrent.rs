@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod torrent {
+pub mod test {
     use crate::{Error, Torrent};
     use bendy::decoding::Decoder;
     use std::{fs::File, io::Read, path::Path};
@@ -24,7 +24,7 @@ pub mod torrent {
                 assert_eq!(torrent.number_of_pieces().unwrap(), 11);
                 assert_eq!(
                     torrent.info_hash().unwrap(),
-                    vec![
+                    [
                         0x06, 0x71, 0x33, 0xac, 0xe5, 0xdd, 0x0c, 0x50, 0x27, 0xb9, 0x9d, 0xe5,
                         0xd4, 0xba, 0x51, 0x28, 0x28, 0x20, 0x8d, 0x5b
                     ]

@@ -1,6 +1,9 @@
 #[cfg(test)]
 pub mod unittest {
-    use crate::pwp::{Have, Interested, IntoBytes, NotIterested, Piece, Request, Unchoke};
+    use crate::pwp::{
+        Bitfield, Have, Interested, IntoBytes, NotIterested, Piece, Request, Unchoke,
+    };
+    use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
 
     fn read_bytes_from(pathfile: &str) -> Vec<u8> {
@@ -29,6 +32,18 @@ pub mod unittest {
         let interested_message = Interested::new();
 
         assert_eq!(interested_message.into_bytes(), expected);
+    }
+
+    #[test]
+    pub fn bitfield_message_into_bytes() {
+        let expected = read_bytes_from(
+            "samples/peer_wire_protocol-messages/expected_bitfield_bytes_in_hex.bin",
+        );
+
+        let bitfield = BitVec::from_bytes(&[0xff, 0xe0]);
+        let bitfield_message = Bitfield::new(bitfield);
+
+        assert_eq!(bitfield_message.into_bytes(), expected);
     }
 
     #[test]

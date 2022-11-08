@@ -11,8 +11,10 @@ pub struct Bitfield {
 
 impl Bitfield {
     pub fn new(bitfield: BitVec) -> Self {
+        let bitfield_len = bitfield.to_bytes().len() as u32;
+
         Self {
-            message_length: MessageType::Bitfield.base_length() + (bitfield.len() as u32),
+            message_length: MessageType::Bitfield.base_length() + bitfield_len,
             message_type: MessageType::Bitfield.id(),
             bitfield,
         }

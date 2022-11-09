@@ -1,4 +1,4 @@
-use crate::pwp::{from_bytes, FromBytes, IntoBytes, MessageType};
+use crate::pwp::{from_bytes, FromBytes, IntoBytes, MandatoryBitTorrentMessageFields, MessageType};
 use crate::Error;
 
 #[derive(Debug)]
@@ -24,14 +24,6 @@ impl Piece {
         }
     }
 
-    pub fn message_length(&self) -> u32 {
-        self.message_length
-    }
-
-    pub fn message_type(&self) -> u8 {
-        self.message_type
-    }
-
     pub fn piece_index(&self) -> u32 {
         self.piece_index
     }
@@ -42,6 +34,16 @@ impl Piece {
 
     pub fn data(&self) -> &Vec<u8> {
         &self.data
+    }
+}
+
+impl MandatoryBitTorrentMessageFields for Piece {
+    fn message_length(&self) -> u32 {
+        self.message_length
+    }
+
+    fn message_type(&self) -> u8 {
+        self.message_type
     }
 }
 
@@ -58,8 +60,10 @@ impl IntoBytes for Piece {
 }
 
 impl FromBytes for Piece {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        if (bytes.len() as u32) < (MessageType::Piece.base_length() + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES) {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Error> {
+        if (bytes.len() as u32)
+            < MessageType::Piece.base_length() + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES
+        {
             return Err(Error::BytesArrayTooShortToContrainMessageFields);
         }
 
@@ -68,7 +72,8 @@ impl FromBytes for Piece {
                 .try_into()
                 .map_err(|_| Error::FailedToParseBitTorrentMessageLength)?,
         );
-        if message_length + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES != bytes.len() as u32 {
+        if message_length + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES != bytes.len() as u32
+        {
             return Err(Error::MessageLengthDoesNotMatchWithExpectedOne);
         }
 
@@ -91,12 +96,15 @@ impl FromBytes for Piece {
 
         let data = bytes[13..bytes.len()].to_vec();
 
-        Ok(Self {
-            message_length,
-            message_type,
-            piece_index,
-            begin_offset_of_piece,
-            data,
-        })
+        Ok((
+            Self {
+                message_length,
+                message_type,
+                piece_index,
+                begin_offset_of_piece,
+                data,
+            },
+            (message_length + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES) as usize,
+        ))
     }
 }

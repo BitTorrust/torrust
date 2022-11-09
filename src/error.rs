@@ -18,6 +18,12 @@ pub enum Error {
     TrackerPortNotProvided,
     FailedToDecodeBencodeData,
     TrackerConnectionNotPossible,
+
+    // Handshake message error
+    FailedToParseBitTorrentHandshakeProtocolNameField,
+    FailedToParseBitTorrentHandshakeReservedField,
+    FailedToParseBitTorrentHandshakeInfoHashField,
+    FailedToParseBitTorrentHandshakePeerIDField,
     // Peer wire protocol message parsing error
     FailedToParseBitTorrentMessageLength,
     MessageLengthDoesNotMatchWithExpectedOne,
@@ -32,7 +38,9 @@ pub enum Error {
     FailedToParseBitTorrentPieceMessagePieceIndex,
     FailedToParseBitTorrentPieceMessageBeginOffset,
     FailedToParseBitTorrentPieceMessagePieceLength,
-    
+    // For have message
+    FailedToParseBitTorrentHaveMessagePieceIndex,
+
     // TCP error
     FailedToConnectToPeer,
 

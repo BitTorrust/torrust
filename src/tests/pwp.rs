@@ -1,8 +1,8 @@
 #[cfg(test)]
 pub mod unittest {
     use crate::pwp::{
-        Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes, NotIterested, Piece, Request,
-        Unchoke,
+        Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
+        MandatoryBitTorrentMessageFields, NotInterested, Piece, Request, Unchoke,
     };
     use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
@@ -46,6 +46,22 @@ pub mod unittest {
     }
 
     #[test]
+    pub fn unchoke_message_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("unchoke.bin"));
+        let unchoke_to_test = Unchoke::from_bytes(&bytes).unwrap().0;
+        let expected_unchock = Unchoke::new();
+
+        assert_eq!(
+            unchoke_to_test.message_length(),
+            expected_unchock.message_length()
+        );
+        assert_eq!(
+            unchoke_to_test.message_type(),
+            expected_unchock.message_type()
+        );
+    }
+
+    #[test]
     pub fn interested_message_into_bytes() {
         let expected = read_bytes_from(&path_build_to_pwp_message("interested.bin"));
         let interested_message = Interested::new();
@@ -73,15 +89,27 @@ pub mod unittest {
     #[test]
     pub fn piece_message_from_bytes() {
         let piece_bytes = read_bytes_from(&path_build_to_pwp_message("piece.bin"));
-        let piece_message_to_test = Piece::from_bytes(&piece_bytes).unwrap();
+        let piece_message_to_test = Piece::from_bytes(&piece_bytes).unwrap().0;
 
         let data = read_bytes_from(&path_build_to_pwp_message("piece_data.bin"));
         let expected_piece = Piece::new(6, 0, data);
 
-        assert_eq!(piece_message_to_test.message_length(), expected_piece.message_length());
-        assert_eq!(piece_message_to_test.message_type(), expected_piece.message_type());
-        assert_eq!(piece_message_to_test.piece_index(), expected_piece.piece_index());
-        assert_eq!(piece_message_to_test.begin_offset_of_piece(), expected_piece.begin_offset_of_piece());
+        assert_eq!(
+            piece_message_to_test.message_length(),
+            expected_piece.message_length()
+        );
+        assert_eq!(
+            piece_message_to_test.message_type(),
+            expected_piece.message_type()
+        );
+        assert_eq!(
+            piece_message_to_test.piece_index(),
+            expected_piece.piece_index()
+        );
+        assert_eq!(
+            piece_message_to_test.begin_offset_of_piece(),
+            expected_piece.begin_offset_of_piece()
+        );
         assert_eq!(piece_message_to_test.data(), expected_piece.data());
     }
 
@@ -96,20 +124,35 @@ pub mod unittest {
     #[test]
     pub fn request_message_from_bytes() {
         let request_bytes = read_bytes_from(&path_build_to_pwp_message("request.bin"));
-        let request_message_to_test = Request::from_bytes(&request_bytes).unwrap();
+        let request_message_to_test = Request::from_bytes(&request_bytes).unwrap().0;
 
         let expected_request = Request::new(6, 0, 0x4000);
 
-        assert_eq!(request_message_to_test.message_length(), expected_request.message_length());
-        assert_eq!(request_message_to_test.message_type(), expected_request.message_type());
-        assert_eq!(request_message_to_test.piece_index(), expected_request.piece_index());
-        assert_eq!(request_message_to_test.begin_offset(), expected_request.begin_offset());
-        assert_eq!(request_message_to_test.piece_length(), expected_request.piece_length());
+        assert_eq!(
+            request_message_to_test.message_length(),
+            expected_request.message_length()
+        );
+        assert_eq!(
+            request_message_to_test.message_type(),
+            expected_request.message_type()
+        );
+        assert_eq!(
+            request_message_to_test.piece_index(),
+            expected_request.piece_index()
+        );
+        assert_eq!(
+            request_message_to_test.begin_offset(),
+            expected_request.begin_offset()
+        );
+        assert_eq!(
+            request_message_to_test.piece_length(),
+            expected_request.piece_length()
+        );
     }
 
     #[test]
     pub fn not_interested_message_into_bytes() {
-        let not_interested_message = NotIterested::new();
+        let not_interested_message = NotInterested::new();
         let expected_bytes = read_bytes_from(&path_build_to_pwp_message("not_interested.bin"));
 
         assert_eq!(not_interested_message.into_bytes(), expected_bytes);

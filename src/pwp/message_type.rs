@@ -1,7 +1,7 @@
 pub enum MessageType {
     Unchoke,
     Interested,
-    NotIterested,
+    NotInterested,
     Have,
     Bitfield,
     Request,
@@ -14,7 +14,7 @@ impl MessageType {
         match self {
             MessageType::Unchoke => 1,
             MessageType::Interested => 2,
-            MessageType::NotIterested => 3,
+            MessageType::NotInterested => 3,
             MessageType::Have => 4,
             MessageType::Bitfield => 5,
             MessageType::Request => 6,
@@ -27,7 +27,7 @@ impl MessageType {
         match self {
             MessageType::Unchoke => 1,
             MessageType::Interested => 1,
-            MessageType::NotIterested => 1,
+            MessageType::NotInterested => 1,
             MessageType::Have => 5,
             MessageType::Bitfield => 1,
             MessageType::Request => 13,

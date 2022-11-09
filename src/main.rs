@@ -7,6 +7,7 @@ use crate::app::App;
 
 mod app;
 mod cli;
+mod file_management;
 mod http;
 mod pwp;
 

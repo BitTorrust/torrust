@@ -7,12 +7,14 @@ use {
     },
 };
 
-pub struct PieceReaderWriter {
+pub struct BlockReaderWriter {
     piece_length: u32,
     file: File,
 }
 
-impl PieceReaderWriter {
+impl BlockReaderWriter {
+    pub const BIT_TORRENT_BLOCK_SIZE: usize = 16 * 1024;
+
     pub fn new(filepath: &Path, piece_length: u32) -> Result<Self, Error> {
         let file = OpenOptions::new()
             .write(true)
@@ -24,7 +26,11 @@ impl PieceReaderWriter {
         Ok(Self { piece_length, file })
     }
 
-    pub fn write(&self, piece: u32, piece_offset: u32, data: &[u8]) -> Result<(), Error> {
+    pub fn write_block(&self, piece: u32, piece_offset: u32, data: &[u8]) -> Result<(), Error> {
+        if data.len() != Self::BIT_TORRENT_BLOCK_SIZE {
+            return Err(Error::UnexpectedBlockSize);
+        }
+
         let offset = Self::calculate_offset(piece, self.piece_length(), piece_offset);
 
         self.file
@@ -34,10 +40,10 @@ impl PieceReaderWriter {
         Ok(())
     }
 
-    pub fn read(&self, piece: u32, piece_offset: u32) -> Result<Vec<u8>, Error> {
+    pub fn read_block(&self, piece: u32, piece_offset: u32) -> Result<Vec<u8>, Error> {
         let offset = Self::calculate_offset(piece, self.piece_length(), piece_offset);
 
-        let mut data = vec![0u8; self.piece_length() as usize];
+        let mut data = vec![0u8; Self::BIT_TORRENT_BLOCK_SIZE];
         self.file
             .read_exact_at(&mut data, offset.into())
             .map_err(|_| Error::FailedToReadFromFile)?;

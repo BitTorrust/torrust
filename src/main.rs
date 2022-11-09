@@ -5,7 +5,7 @@ mod error;
 pub use error::Error;
 
 mod file_management;
-pub use file_management::PieceReaderWriter;
+pub use file_management::BlockReaderWriter;
 
 mod app;
 use app::App;

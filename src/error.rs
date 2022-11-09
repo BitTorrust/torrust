@@ -19,4 +19,5 @@ pub enum Error {
     FailedToCreateFile,
     FailedToWriteToFile,
     FailedToReadFromFile,
+    UnexpectedBlockSize,
 }

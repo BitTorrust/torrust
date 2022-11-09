@@ -1,26 +1,25 @@
 #[cfg(test)]
 mod test {
-    use crate::{PieceReaderWriter, Torrent};
+    use crate::PieceReaderWriter;
     use std::path::Path;
 
     #[test]
     fn read_and_write_pieces() {
-        let torrent = Torrent::from_file(Path::new("./samples/iceberg.jpg.torrent")).unwrap();
-        let torrent_writer = PieceReaderWriter::new(Path::new("."), torrent).unwrap();
-        let piece_length = torrent_writer.piece_length() as usize;
+        let file = PieceReaderWriter::new(Path::new("test.jpg"), 32 * 1024).unwrap();
+        let piece_length = file.piece_length() as usize;
 
         let second_piece = vec![0xBB; piece_length];
-        torrent_writer.write(1, 0, &second_piece).unwrap();
+        file.write(1, 0, &second_piece).unwrap();
 
         let first_piece = vec![0xAA; piece_length];
-        torrent_writer.write(0, 0, &first_piece).unwrap();
+        file.write(0, 0, &first_piece).unwrap();
 
         let third_piece = vec![0xCC; piece_length];
-        torrent_writer.write(2, 0, &third_piece).unwrap();
+        file.write(2, 0, &third_piece).unwrap();
 
-        assert_eq!(torrent_writer.read(0, 0).unwrap(), first_piece.to_vec());
-        assert_eq!(torrent_writer.read(1, 0).unwrap(), second_piece.to_vec());
-        assert_eq!(torrent_writer.read(2, 0).unwrap(), third_piece.to_vec());
+        assert_eq!(file.read(0, 0).unwrap(), first_piece.to_vec());
+        assert_eq!(file.read(1, 0).unwrap(), second_piece.to_vec());
+        assert_eq!(file.read(2, 0).unwrap(), third_piece.to_vec());
     }
 
     #[test]

@@ -8,29 +8,24 @@ use {
 };
 
 pub struct PieceReaderWriter {
-    torrent: Torrent,
+    piece_length: u32,
     file: File,
 }
 
 impl PieceReaderWriter {
-    pub fn new(folder: &Path, torrent: Torrent) -> Result<Self, Error> {
-        if !folder.is_dir() {
-            return Err(Error::DirectoryDoesNotExist);
-        }
-
-        let filename = folder.join(torrent.name().unwrap());
+    pub fn new(filepath: &Path, piece_length: u32) -> Result<Self, Error> {
         let file = OpenOptions::new()
             .write(true)
             .read(true)
             .create(true)
-            .open(filename)
+            .open(filepath)
             .map_err(|_| Error::FailedToCreateFile)?;
 
-        Ok(Self { torrent, file })
+        Ok(Self { piece_length, file })
     }
 
     pub fn write(&self, piece: u32, piece_offset: u32, data: &[u8]) -> Result<(), Error> {
-        let piece_length = self.torrent.piece_length_in_bytes().unwrap();
+        let piece_length = self.piece_length();
         let offset = Self::calculate_offset(piece, piece_length, piece_offset);
 
         self.file
@@ -53,7 +48,7 @@ impl PieceReaderWriter {
     }
 
     pub fn piece_length(&self) -> u32 {
-        self.torrent.piece_length_in_bytes().unwrap()
+        self.piece_length
     }
 
     pub fn calculate_offset(piece: u32, piece_length: u32, piece_offset: u32) -> u32 {

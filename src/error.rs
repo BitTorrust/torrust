@@ -10,4 +10,9 @@ pub enum Error {
     BencodeObjectHasUnexpectedType,
     UnexpectedResponseFromTracker,
     TrackerFailureMessageContainsNonUtf8Characters,
+    InvalidURLAddress,
+    TrackerHostNotProvided,
+    TrackerPortNotProvided,
+    FailedToDecodeBencodeData,
+    TrackerConnectionNotPossible,
 }

@@ -1,3 +1,4 @@
+use crate::error::Error;
 use reqwest::Url;
 
 pub struct TrackerAddress {
@@ -6,14 +7,11 @@ pub struct TrackerAddress {
 }
 
 impl TrackerAddress {
-    pub fn from_url(url: Url) -> Self {
-        let host = url.host().unwrap().to_string();
-        let port = url.port().unwrap();
+    pub fn from_url(url: Url) -> Result<Self, Error> {
+        let host = url.host().ok_or(Error::TrackerHostNotProvided)?.to_string();
+        let port = url.port().ok_or(Error::TrackerPortNotProvided)?;
 
-        Self {
-            host: host,
-            port: port,
-        }
+        Ok(Self { host, port })
     }
 
     pub fn host(&self) -> &str {

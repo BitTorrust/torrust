@@ -11,4 +11,8 @@ pub enum Error {
     UnexpectedResponseFromTracker,
     TrackerFailureMessageContainsNonUtf8Characters,
     InvalidURLAddress,
+    TrackerHostNotProvided,
+    TrackerPortNotProvided,
+    FailedToDecodeBencodeData,
+    TrackerConnectionNotPossible,
 }

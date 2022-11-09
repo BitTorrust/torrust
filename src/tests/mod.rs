@@ -6,3 +6,6 @@ pub mod torrent;
 
 #[cfg(test)]
 pub mod pwp;
+
+#[cfg(test)]
+pub mod file_management;

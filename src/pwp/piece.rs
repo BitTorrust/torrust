@@ -72,10 +72,6 @@ impl FromBytes for Piece {
                 .try_into()
                 .map_err(|_| Error::FailedToParseBitTorrentMessageLength)?,
         );
-        if message_length + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES != bytes.len() as u32
-        {
-            return Err(Error::MessageLengthDoesNotMatchWithExpectedOne);
-        }
 
         let message_type = bytes[4];
         if message_type != MessageType::Piece.id() {

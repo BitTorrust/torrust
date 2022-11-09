@@ -1,4 +1,3 @@
-// TODO rename file name
 use crate::http::Peer;
 use crate::pwp::IntoBytes;
 use crate::Error::FailedToConnectToPeer;
@@ -29,5 +28,3 @@ impl TCPSession {
         self.stream.read()
     }
 }
-
-

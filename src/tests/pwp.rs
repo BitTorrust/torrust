@@ -38,6 +38,23 @@ pub mod unittest {
     }
 
     #[test]
+    pub fn handshake_message_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("handshake.bin"));
+        let handshake_to_test = Handshake::from_bytes(&bytes).unwrap().0;
+
+        let expected_handshake = Handshake::new(INFO_ID, PEER_ID);
+
+        assert_eq!(handshake_to_test.pstrlen(), expected_handshake.pstrlen());
+        assert_eq!(handshake_to_test.pstr(), expected_handshake.pstr());
+        assert_eq!(handshake_to_test.reserved(), expected_handshake.reserved());
+        assert_eq!(
+            handshake_to_test.info_hash(),
+            expected_handshake.info_hash()
+        );
+        assert_eq!(handshake_to_test.peer_id(), expected_handshake.peer_id());
+    }
+
+    #[test]
     pub fn unchoke_message_into_bytes() {
         let expected = read_bytes_from(&path_build_to_pwp_message("unchoke.bin"));
         let unchoke_message = Unchoke::new();
@@ -70,11 +87,44 @@ pub mod unittest {
     }
 
     #[test]
+    pub fn interested_message_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("interested.bin"));
+        let interested_to_test = Interested::from_bytes(&bytes).unwrap().0;
+        let expected_unchock = Interested::new();
+
+        assert_eq!(
+            interested_to_test.message_length(),
+            expected_unchock.message_length()
+        );
+        assert_eq!(
+            interested_to_test.message_type(),
+            expected_unchock.message_type()
+        );
+    }
+
+    #[test]
     pub fn bitfield_message_into_bytes() {
         let expected = read_bytes_from(&path_build_to_pwp_message("bitfield.bin"));
         let bitfield_message = Bitfield::new(BitVec::from_bytes(&[0xff, 0xe0]));
 
         assert_eq!(bitfield_message.into_bytes(), expected);
+    }
+
+    #[test]
+    pub fn bitfield_message_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("bitfield.bin"));
+        let bitfield_to_test = Bitfield::from_bytes(&bytes).unwrap().0;
+        let expected_bitfield = Bitfield::new(BitVec::from_bytes(&[0xff, 0xe0]));
+
+        assert_eq!(
+            bitfield_to_test.message_length(),
+            expected_bitfield.message_length()
+        );
+        assert_eq!(
+            bitfield_to_test.message_type(),
+            expected_bitfield.message_type()
+        );
+        assert_eq!(bitfield_to_test.bitfield(), expected_bitfield.bitfield());
     }
 
     #[test]
@@ -159,10 +209,42 @@ pub mod unittest {
     }
 
     #[test]
+    pub fn not_interested_message_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("not_interested.bin"));
+        let not_interested_to_test = NotInterested::from_bytes(&bytes).unwrap().0;
+
+        let expected_not_interested = NotInterested::new();
+
+        assert_eq!(
+            not_interested_to_test.message_length(),
+            expected_not_interested.message_length()
+        );
+        assert_eq!(
+            not_interested_to_test.message_type(),
+            expected_not_interested.message_type()
+        );
+    }
+
+    #[test]
     pub fn have_message_into_bytes() {
         let have_message = Have::new(0x1);
         let expected_bytes = read_bytes_from(&path_build_to_pwp_message("have.bin"));
 
         assert_eq!(have_message.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn have_message_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("have.bin"));
+        let have_to_test = Have::from_bytes(&bytes).unwrap().0;
+
+        let expected_have = Have::new(0x1);
+
+        assert_eq!(
+            have_to_test.message_length(),
+            expected_have.message_length()
+        );
+        assert_eq!(have_to_test.message_type(), expected_have.message_type());
+        assert_eq!(have_to_test.piece_index(), expected_have.piece_index());
     }
 }

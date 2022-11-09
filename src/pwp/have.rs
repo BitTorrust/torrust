@@ -20,6 +20,10 @@ impl Have {
     pub fn have(&self) -> u32 {
         self.piece_index
     }
+
+    pub fn piece_index(&self) -> u32 {
+        self.piece_index
+    }
 }
 
 impl MandatoryBitTorrentMessageFields for Have {
@@ -65,7 +69,7 @@ impl FromBytes for Have {
         }
 
         let piece_index = u32::from_be_bytes(
-            bytes[13..17]
+            bytes[5..9]
                 .try_into()
                 .map_err(|_| Error::FailedToParseBitTorrentHaveMessagePieceIndex)?,
         );

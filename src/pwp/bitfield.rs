@@ -54,6 +54,7 @@ impl IntoBytes for Bitfield {
 
 impl FromBytes for Bitfield {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Error> {
+        println!("bytes {:?}", bytes);
         if (bytes.len() as u32)
             < MessageType::Bitfield.base_length()
                 + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES
@@ -66,16 +67,14 @@ impl FromBytes for Bitfield {
                 .try_into()
                 .map_err(|_| Error::FailedToParseBitTorrentMessageLength)?,
         );
-        if message_length != MessageType::Bitfield.base_length() {
-            return Err(Error::MessageLengthDoesNotMatchWithExpectedOne);
-        }
 
         let message_type = bytes[4];
         if message_type != MessageType::Bitfield.id() {
             return Err(Error::MessageTypeDoesNotMatchWithExpectedOne);
         }
 
-        let bitfield = BitVec::from_bytes(&bytes[4..6]);
+        let bitfield_end_offset = (5 + message_length - 1) as usize;
+        let bitfield = BitVec::from_bytes(&bytes[5..bitfield_end_offset]);
 
         Ok((
             Self {

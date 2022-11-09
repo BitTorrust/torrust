@@ -24,51 +24,24 @@ impl Piece {
         }
     }
 
-    pub fn message_length(self) -> u32 {
+    pub fn message_length(&self) -> u32 {
         self.message_length
     }
 
-    pub fn message_type(self) -> u8 {
+    pub fn message_type(&self) -> u8 {
         self.message_type
     }
 
-    pub fn piece_index(self) -> u32 {
+    pub fn piece_index(&self) -> u32 {
         self.piece_index
     }
 
-    pub fn begin_offset_of_piece(self) -> u32 {
+    pub fn begin_offset_of_piece(&self) -> u32 {
         self.begin_offset_of_piece
     }
 
-    pub fn data(self) -> Vec<u8> {
-        self.data.clone()
-    }
-}
-
-impl PartialEq for Piece {
-    fn eq(&self, other: &Self) -> bool {
-        let mut are_equal = self.message_length() == other.message_length();
-        are_equal &= self.message_type() == other.message_type();
-        are_equal &= self.piece_index() == other.piece_index();
-        are_equal &= self.begin_offset_of_piece() == other.begin_offset_of_piece();
-        are_equal &= self.data().iter().cloned().eq(other.data());
-        are_equal
-    }
-}
-
-impl Copy for Piece {}
-
-//TODO
-
-impl Clone for Piece {
-    fn clone(&self) -> Self {
-        Self {
-            message_length: self.message_length(),
-            message_type: self.message_type(),
-            piece_index: self.piece_index(),
-            begin_offset_of_piece: self.begin_offset_of_piece(),
-            data: self.data().clone(),
-        }
+    pub fn data(&self) -> &Vec<u8> {
+        &self.data
     }
 }
 
@@ -86,10 +59,8 @@ impl IntoBytes for Piece {
 
 impl FromBytes for Piece {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() as u32
-            != MessageType::Piece.base_length() + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES
-        {
-            return Err(Error::BytesArrayTooShort);
+        if (bytes.len() as u32) < (MessageType::Piece.base_length() + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES) {
+            return Err(Error::BytesArrayTooShortToContrainMessageFields);
         }
 
         let message_length = u32::from_be_bytes(
@@ -97,7 +68,7 @@ impl FromBytes for Piece {
                 .try_into()
                 .map_err(|_| Error::FailedToParseBitTorrentMessageLength)?,
         );
-        if message_length != MessageType::Request.base_length() {
+        if message_length + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES != bytes.len() as u32 {
             return Err(Error::MessageLengthDoesNotMatchWithExpectedOne);
         }
 

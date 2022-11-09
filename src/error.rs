@@ -23,6 +23,7 @@ pub enum Error {
     MessageLengthDoesNotMatchWithExpectedOne,
     BytesArrayTooShort,
     MessageTypeDoesNotMatchWithExpectedOne,
+    BytesArrayTooShortToContrainMessageFields,
     // For request message
     FailedToParseBitTorrentRequestMessagePieceIndex,
     FailedToParseBitTorrentRequestMessageBeginOffset,

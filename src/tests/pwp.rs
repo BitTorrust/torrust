@@ -25,13 +25,13 @@ pub mod unittest {
         data_buffer
     }
 
-    pub fn path_builder(file: &str) -> String {
+    pub fn path_build_to_pwp_message(file: &str) -> String {
         "samples/peer_wire_protocol-messages/".to_string() + file
     }
 
     #[test]
     pub fn handshake_message_into_bytes() {
-        let expected = read_bytes_from(&path_builder("handshake.bin"));
+        let expected = read_bytes_from(&path_build_to_pwp_message("handshake.bin"));
         let handshake_bytes = Handshake::new(INFO_ID, PEER_ID);
 
         assert_eq!(handshake_bytes.into_bytes(), expected);
@@ -39,7 +39,7 @@ pub mod unittest {
 
     #[test]
     pub fn unchoke_message_into_bytes() {
-        let expected = read_bytes_from(&path_builder("unchoke.bin"));
+        let expected = read_bytes_from(&path_build_to_pwp_message("unchoke.bin"));
         let unchoke_message = Unchoke::new();
 
         assert_eq!(unchoke_message.into_bytes(), expected);
@@ -47,7 +47,7 @@ pub mod unittest {
 
     #[test]
     pub fn interested_message_into_bytes() {
-        let expected = read_bytes_from(&path_builder("interested.bin"));
+        let expected = read_bytes_from(&path_build_to_pwp_message("interested.bin"));
         let interested_message = Interested::new();
 
         assert_eq!(interested_message.into_bytes(), expected);
@@ -55,7 +55,7 @@ pub mod unittest {
 
     #[test]
     pub fn bitfield_message_into_bytes() {
-        let expected = read_bytes_from(&path_builder("bitfield.bin"));
+        let expected = read_bytes_from(&path_build_to_pwp_message("bitfield.bin"));
         let bitfield_message = Bitfield::new(BitVec::from_bytes(&[0xff, 0xe0]));
 
         assert_eq!(bitfield_message.into_bytes(), expected);
@@ -63,35 +63,54 @@ pub mod unittest {
 
     #[test]
     pub fn piece_message_into_bytes() {
-        let data = read_bytes_from(&path_builder("piece_data.bin"));
+        let data = read_bytes_from(&path_build_to_pwp_message("piece_data.bin"));
         let piece_message_to_test = Piece::new(6, 0, data);
-        let expected_bytes = read_bytes_from(&path_builder("piece.bin"));
+        let expected_bytes = read_bytes_from(&path_build_to_pwp_message("piece.bin"));
 
         assert_eq!(piece_message_to_test.into_bytes(), expected_bytes);
     }
 
     #[test]
+    pub fn piece_message_from_bytes() {
+        let piece_bytes = read_bytes_from(&path_build_to_pwp_message("piece.bin"));
+        let piece_message_to_test = Piece::from_bytes(&piece_bytes).unwrap();
+
+        let data = read_bytes_from(&path_build_to_pwp_message("piece_data.bin"));
+        let expected_piece = Piece::new(6, 0, data);
+
+        assert_eq!(piece_message_to_test.message_length(), expected_piece.message_length());
+        assert_eq!(piece_message_to_test.message_type(), expected_piece.message_type());
+        assert_eq!(piece_message_to_test.piece_index(), expected_piece.piece_index());
+        assert_eq!(piece_message_to_test.begin_offset_of_piece(), expected_piece.begin_offset_of_piece());
+        assert_eq!(piece_message_to_test.data(), expected_piece.data());
+    }
+
+    #[test]
     pub fn request_message_into_bytes() {
         let request_message_to_test = Request::new(6, 0, 0x4000);
-        let expected_bytes = read_bytes_from(&path_builder("request.bin"));
+        let expected_bytes = read_bytes_from(&path_build_to_pwp_message("request.bin"));
 
         assert_eq!(request_message_to_test.into_bytes(), expected_bytes);
     }
 
     #[test]
     pub fn request_message_from_bytes() {
-        let request_bytes = read_bytes_from(&path_builder("request.bin"));
-        let request_message = Request::from_bytes(&request_bytes).unwrap();
+        let request_bytes = read_bytes_from(&path_build_to_pwp_message("request.bin"));
+        let request_message_to_test = Request::from_bytes(&request_bytes).unwrap();
 
         let expected_request = Request::new(6, 0, 0x4000);
 
-        assert_eq!(request_message, expected_request);
+        assert_eq!(request_message_to_test.message_length(), expected_request.message_length());
+        assert_eq!(request_message_to_test.message_type(), expected_request.message_type());
+        assert_eq!(request_message_to_test.piece_index(), expected_request.piece_index());
+        assert_eq!(request_message_to_test.begin_offset(), expected_request.begin_offset());
+        assert_eq!(request_message_to_test.piece_length(), expected_request.piece_length());
     }
 
     #[test]
     pub fn not_interested_message_into_bytes() {
         let not_interested_message = NotIterested::new();
-        let expected_bytes = read_bytes_from(&path_builder("not_interested.bin"));
+        let expected_bytes = read_bytes_from(&path_build_to_pwp_message("not_interested.bin"));
 
         assert_eq!(not_interested_message.into_bytes(), expected_bytes);
     }
@@ -99,7 +118,7 @@ pub mod unittest {
     #[test]
     pub fn have_message_into_bytes() {
         let have_message = Have::new(0x1);
-        let expected_bytes = read_bytes_from(&path_builder("have.bin"));
+        let expected_bytes = read_bytes_from(&path_build_to_pwp_message("have.bin"));
 
         assert_eq!(have_message.into_bytes(), expected_bytes);
     }

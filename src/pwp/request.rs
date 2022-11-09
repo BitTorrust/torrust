@@ -25,35 +25,24 @@ impl Request {
         }
     }
 
-    pub fn message_length(self) -> u32 {
+    pub fn message_length(&self) -> u32 {
         self.message_length
     }
 
-    pub fn message_type(self) -> u8 {
+    pub fn message_type(&self) -> u8 {
         self.message_type
     }
 
-    pub fn piece_index(self) -> u32 {
+    pub fn piece_index(&self) -> u32 {
         self.piece_index
     }
 
-    pub fn begin_offset(self) -> u32 {
+    pub fn begin_offset(&self) -> u32 {
         self.begin_offset
     }
 
-    pub fn piece_length(self) -> u32 {
+    pub fn piece_length(&self) -> u32 {
         self.piece_length
-    }
-}
-
-impl PartialEq for Request {
-    fn eq(&self, other: &Self) -> bool {
-        let mut are_equal = self.message_length() == other.message_length();
-        are_equal &= self.message_type() == other.message_type();
-        are_equal &= self.piece_index() == other.piece_index();
-        are_equal &= self.begin_offset() == other.begin_offset();
-        are_equal &= self.piece_length() == other.piece_length();
-        are_equal
     }
 }
 
@@ -95,31 +84,19 @@ impl FromBytes for Request {
         let piece_index = u32::from_be_bytes(
             bytes[5..9]
                 .try_into()
-<<<<<<< HEAD
-                .map_err(|_| Error::FailedToParseBitTorrentRequestPieceIndex)?,
-=======
                 .map_err(|_| Error::FailedToParseBitTorrentRequestMessagePieceIndex)?,
->>>>>>> wip pieces copy trait
         );
 
         let begin_offset = u32::from_be_bytes(
             bytes[9..13]
                 .try_into()
-<<<<<<< HEAD
-                .map_err(|_| Error::FailedToParseBitTorrentRequestBeginOffset)?,
-=======
                 .map_err(|_| Error::FailedToParseBitTorrentRequestMessageBeginOffset)?,
->>>>>>> wip pieces copy trait
         );
 
         let piece_length = u32::from_be_bytes(
             bytes[13..17]
                 .try_into()
-<<<<<<< HEAD
-                .map_err(|_| Error::FailedToParseBitTorrentRequestPieceLength)?,
-=======
                 .map_err(|_| Error::FailedToParseBitTorrentRequestMessagePieceLength)?,
->>>>>>> wip pieces copy trait
         );
 
         Ok(Self {

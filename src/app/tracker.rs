@@ -1,25 +1,26 @@
-pub struct Tracker {
+use reqwest::Url;
+
+pub struct TrackerAddress {
     host: String,
     port: u16,
 }
 
-impl Tracker {
-    pub fn new(host: String, port: u16) -> Self {
-        Self { host, port }
+impl TrackerAddress {
+    pub fn from_url(url: Url) -> Self {
+        let host = url.host().unwrap().to_string();
+        let port = url.port().unwrap();
+
+        Self {
+            host: host,
+            port: port,
+        }
     }
 
-    pub fn get_tracker_host(&self) -> &String {
+    pub fn host(&self) -> &str {
         &self.host
     }
 
-    pub fn get_tracker_port(&self) -> u16 {
+    pub fn port(&self) -> u16 {
         self.port
-    }
-    pub fn set_tracker_host(&mut self, host: String) {
-        self.host = host;
-    }
-
-    pub fn set_tracker_port(&mut self, port: u16) {
-        self.port = port;
     }
 }

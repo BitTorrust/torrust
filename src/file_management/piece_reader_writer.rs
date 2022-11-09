@@ -7,12 +7,12 @@ use {
     },
 };
 
-pub struct TorrentReaderWriter {
+pub struct PieceReaderWriter {
     torrent: Torrent,
     file: File,
 }
 
-impl TorrentReaderWriter {
+impl PieceReaderWriter {
     pub fn new(folder: &Path, torrent: Torrent) -> Result<Self, Error> {
         if !folder.is_dir() {
             return Err(Error::DirectoryDoesNotExist);
@@ -70,7 +70,7 @@ mod test {
     #[test]
     fn read_and_write_pieces() {
         let torrent = Torrent::from_file(Path::new("./samples/iceberg.jpg.torrent")).unwrap();
-        let torrent_writer = TorrentReaderWriter::new(Path::new("."), torrent).unwrap();
+        let torrent_writer = PieceReaderWriter::new(Path::new("."), torrent).unwrap();
         let piece_length = torrent_writer.piece_length() as usize;
 
         let second_piece = vec![0xBB; piece_length];
@@ -89,16 +89,16 @@ mod test {
 
     #[test]
     fn calculate_offset() {
-        let offset = TorrentReaderWriter::calculate_offset(0, 32 * 1024, 0);
+        let offset = PieceReaderWriter::calculate_offset(0, 32 * 1024, 0);
         assert_eq!(offset, 0);
 
-        let offset = TorrentReaderWriter::calculate_offset(0, 32 * 1024, 16384);
+        let offset = PieceReaderWriter::calculate_offset(0, 32 * 1024, 16384);
         assert_eq!(offset, 16384);
 
-        let offset = TorrentReaderWriter::calculate_offset(1, 32 * 1024, 0);
+        let offset = PieceReaderWriter::calculate_offset(1, 32 * 1024, 0);
         assert_eq!(offset, 32768);
 
-        let offset = TorrentReaderWriter::calculate_offset(1, 32 * 1024, 16384);
+        let offset = PieceReaderWriter::calculate_offset(1, 32 * 1024, 16384);
         assert_eq!(offset, 49152);
     }
 }

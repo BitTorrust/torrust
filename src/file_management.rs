@@ -1,2 +1,2 @@
-mod torrent_reader_writer;
-pub use torrent_reader_writer::TorrentReaderWriter;
+mod piece_reader_writer;
+pub use piece_reader_writer::PieceReaderWriter;

@@ -26,6 +26,7 @@ impl BlockReaderWriter {
         Ok(Self { piece_length, file })
     }
 
+    // TODO: this will fail to write the last block when it has a size different from 16kb
     pub fn write_block(&self, piece: u32, piece_offset: u32, data: &[u8]) -> Result<(), Error> {
         if data.len() != Self::BIT_TORRENT_BLOCK_SIZE {
             return Err(Error::UnexpectedBlockSize);
@@ -40,6 +41,7 @@ impl BlockReaderWriter {
         Ok(())
     }
 
+    // TODO: this will fail to read the last block when it has a size different from 16kb
     pub fn read_block(&self, piece: u32, piece_offset: u32) -> Result<Vec<u8>, Error> {
         let offset = Self::calculate_offset(piece, self.piece_length(), piece_offset);
 

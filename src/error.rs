@@ -1,11 +1,14 @@
 #[derive(Debug)]
 pub enum Error {
+    // Torrent file parsing error
     FailedToOpenTorrentFile,
     FailedToReadTorrentFile,
     FailedToParseTorrentFile,
     FailedToGetRawBytesFromInfoDict,
     TotalPiecesLengthNotFoundDuringParsing,
     SinglePieceLengthNotFoundDuringParsing,
+
+    // HTTP announce error
     FailedToParseUrl,
     BencodeObjectHasUnexpectedType,
     UnexpectedResponseFromTracker,
@@ -15,6 +18,20 @@ pub enum Error {
     TrackerPortNotProvided,
     FailedToDecodeBencodeData,
     TrackerConnectionNotPossible,
+    // Peer wire protocol message parsing error
+    FailedToParseBitTorrentMessageLength,
+    MessageLengthDoesNotMatchWithExpectedOne,
+    BytesArrayTooShort,
+    MessageTypeDoesNotMatchWithExpectedOne,
+    // For request message
+    FailedToParseBitTorrentRequestPieceIndex,
+    FailedToParseBitTorrentRequestBeginOffset,
+    FailedToParseBitTorrentRequestPieceLength,
+
+    // TCP error
+    FailedToConnectToPeer,
+
+    // File management error
     DirectoryDoesNotExist,
     FailedToCreateFile,
     FailedToWriteToFile,

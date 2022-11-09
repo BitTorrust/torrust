@@ -22,7 +22,7 @@ impl MessageType {
         }
     }
 
-    /// Length of the message without variable size field taken in account
+    /// Length of the message without variable size field and length field (4 bytes) taken in account
     pub fn base_length(self) -> u32 {
         match self {
             MessageType::Unchoke => 1,

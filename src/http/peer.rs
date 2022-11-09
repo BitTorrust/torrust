@@ -14,4 +14,8 @@ impl Peer {
             socket_address: SocketAddrV4::new(ip, port),
         }
     }
+
+    pub fn socket_address(self) -> String {
+        self.socket_address.to_string()
+    }
 }

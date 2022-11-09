@@ -1,5 +1,5 @@
 use {
-    crate::{Error, Torrent},
+    crate::Error,
     std::{
         fs::{File, OpenOptions},
         os::unix::fs::FileExt,
@@ -25,8 +25,7 @@ impl PieceReaderWriter {
     }
 
     pub fn write(&self, piece: u32, piece_offset: u32, data: &[u8]) -> Result<(), Error> {
-        let piece_length = self.piece_length();
-        let offset = Self::calculate_offset(piece, piece_length, piece_offset);
+        let offset = Self::calculate_offset(piece, self.piece_length(), piece_offset);
 
         self.file
             .write_at(data, offset.into())
@@ -36,10 +35,9 @@ impl PieceReaderWriter {
     }
 
     pub fn read(&self, piece: u32, piece_offset: u32) -> Result<Vec<u8>, Error> {
-        let piece_length = self.piece_length();
-        let offset = Self::calculate_offset(piece, piece_length, piece_offset);
+        let offset = Self::calculate_offset(piece, self.piece_length(), piece_offset);
 
-        let mut data = vec![0u8; piece_length as usize];
+        let mut data = vec![0u8; self.piece_length() as usize];
         self.file
             .read_exact_at(&mut data, offset.into())
             .map_err(|_| Error::FailedToReadFromFile)?;

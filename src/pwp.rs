@@ -1,5 +1,5 @@
 mod bitfield;
-mod from_bytes;
+pub(crate) mod from_bytes;
 mod handshake;
 mod have;
 mod interested;
@@ -12,7 +12,7 @@ mod request;
 mod unchoke;
 
 pub use bitfield::Bitfield;
-pub use from_bytes::FromBytes;
+pub use from_bytes::{identity_first_message_type_of, FromBytes};
 pub use handshake::Handshake;
 pub use have::Have;
 pub use interested::Interested;

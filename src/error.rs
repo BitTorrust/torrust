@@ -30,6 +30,7 @@ pub enum Error {
     BytesArrayTooShort,
     MessageTypeDoesNotMatchWithExpectedOne,
     BytesArrayTooShortToContrainMessageFields,
+    FailedToFindTheMessageTypeOfRawBytes,
     // For request message
     FailedToParseBitTorrentRequestMessagePieceIndex,
     FailedToParseBitTorrentRequestMessageBeginOffset,

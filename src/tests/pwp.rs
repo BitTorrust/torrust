@@ -1,8 +1,8 @@
 #[cfg(test)]
 pub mod unittest {
     use crate::pwp::{
-        Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
-        MandatoryBitTorrentMessageFields, NotInterested, Piece, Request, Unchoke,
+        from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
+        MandatoryBitTorrentMessageFields, MessageType, NotInterested, Piece, Request, Unchoke,
     };
     use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
@@ -246,5 +246,55 @@ pub mod unittest {
         );
         assert_eq!(have_to_test.message_type(), expected_have.message_type());
         assert_eq!(have_to_test.piece_index(), expected_have.piece_index());
+    }
+
+    #[test]
+    pub fn identify_bitfield_message_type_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("bitfield.bin"));
+        let bitfield_message_type_to_test =
+            from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(bitfield_message_type_to_test, MessageType::Bitfield);
+    }
+
+    #[test]
+    pub fn identify_have_message_type_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("have.bin"));
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Have);
+    }
+
+    #[test]
+    pub fn identify_interested_message_type_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("interested.bin"));
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Interested);
+    }
+
+    #[test]
+    pub fn identify_not_interested_message_type_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("not_interested.bin"));
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::NotInterested);
+    }
+
+    #[test]
+    pub fn identify_piece_message_type_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("piece.bin"));
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Piece);
+    }
+
+    #[test]
+    pub fn identify_request_message_type_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("request.bin"));
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Request);
+    }
+
+    #[test]
+    pub fn identify_unchoke_message_type_from_bytes() {
+        let bytes = read_bytes_from(&path_build_to_pwp_message("unchoke.bin"));
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Unchoke);
     }
 }

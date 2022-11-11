@@ -1,30 +1,36 @@
 use crate::http::Peer;
 use crate::pwp::IntoBytes;
-use crate::Error::FailedToConnectToPeer;
-use std::io::prelude::*;
+use crate::Error;
+use std::io::{self, prelude::*};
 use std::net::TcpStream;
 
-struct TCPSession {
+pub struct TCPSession {
     peer: Peer,
     steam: TcpStream,
 }
 
 impl TCPSession {
-    pub fn new(self, peer: Peer) -> Result<TCPSession, Error> {
-        let stream = TcpStream::connect(peer.socket_address()).map_err(|_| Error::FailedToConnectToPeer)?;
-        Self {
+    pub fn connect(peer: Peer) -> Result<TCPSession, Error> {
+        let stream =
+            TcpStream::connect(peer.socket_address()).map_err(|_| Error::FailedToConnectToPeer)?;
+        Ok(Self {
             peer,
             steam: stream,
-        }
+        })
+    }
+
+    fn steam(&self) -> &TcpStream {
+        &self.steam
     }
 
     /// Returns the number of bytes sent
-    pub fn send(bittorrent_message: impl into_bytes) -> usize { 
-        self.stream.write(bittorrent_message.into_bytes())
+    pub fn send(&self, bittorrent_message: impl IntoBytes) -> Result<usize, io::Error> {
+        self.steam().write(&(bittorrent_message.into_bytes()))
     }
 
-    // Returns the number of bytes received
-    pub fn receive() -> usize {
-        self.stream.read()
+    /// Write the received bytes in the buffer
+    /// Returns the number of bytes received
+    pub fn receive(&self, buffer: &mut Vec<u8>) -> Result<usize, io::Error> {
+        self.steam().read(buffer)
     }
 }

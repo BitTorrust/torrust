@@ -1,6 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Peer {
     socket_address: SocketAddrV4,
 }
@@ -13,6 +13,10 @@ impl Peer {
         Peer {
             socket_address: SocketAddrV4::new(ip, port),
         }
+    }
+
+    pub fn from_socket_address(socket_address: SocketAddrV4) -> Self {
+        Peer { socket_address }
     }
 
     pub fn socket_address(self) -> String {

@@ -54,7 +54,6 @@ impl IntoBytes for Bitfield {
 
 impl FromBytes for Bitfield {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Error> {
-        println!("bytes {:?}", bytes);
         if (bytes.len() as u32)
             < MessageType::Bitfield.base_length()
                 + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES

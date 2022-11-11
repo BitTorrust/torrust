@@ -9,3 +9,6 @@ pub mod pwp;
 
 #[cfg(test)]
 pub mod file_management;
+
+#[cfg(test)]
+pub mod tcp;

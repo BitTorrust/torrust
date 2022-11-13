@@ -9,13 +9,14 @@ use {
 
 pub struct BlockReaderWriter {
     piece_length: u32,
+    torrent_size: usize,
     file: File,
 }
 
 impl BlockReaderWriter {
     pub const BIT_TORRENT_BLOCK_SIZE: usize = 16 * 1024;
 
-    pub fn new(filepath: &Path, piece_length: u32) -> Result<Self, Error> {
+    pub fn new(filepath: &Path, piece_length: u32, torrent_size: usize) -> Result<Self, Error> {
         let file = OpenOptions::new()
             .write(true)
             .read(true)
@@ -23,12 +24,15 @@ impl BlockReaderWriter {
             .open(filepath)
             .map_err(|_| Error::FailedToCreateFile)?;
 
-        Ok(Self { piece_length, file })
+        Ok(Self {
+            piece_length,
+            file,
+            torrent_size,
+        })
     }
 
-    // TODO: this will fail to write the last block when it has a size different from 16kb
-    pub fn write_block(&self, piece: u32, piece_offset: u32, data: &[u8]) -> Result<(), Error> {
-        if data.len() != Self::BIT_TORRENT_BLOCK_SIZE {
+    pub fn write(&self, piece: u32, piece_offset: u32, data: &[u8]) -> Result<(), Error> {
+        if data.len() > Self::BIT_TORRENT_BLOCK_SIZE as usize {
             return Err(Error::UnexpectedBlockSize);
         }
 
@@ -41,13 +45,13 @@ impl BlockReaderWriter {
         Ok(())
     }
 
-    // TODO: this will fail to read the last block when it has a size different from 16kb
-    pub fn read_block(&self, piece: u32, piece_offset: u32) -> Result<Vec<u8>, Error> {
+    pub fn read(&self, piece: u32, piece_offset: u32) -> Result<Vec<u8>, Error> {
         let offset = Self::calculate_offset(piece, self.piece_length(), piece_offset);
+        let bytes_to_read = self.bytes_to_read(offset);
 
-        let mut data = vec![0u8; Self::BIT_TORRENT_BLOCK_SIZE];
+        let mut data = vec![0u8; bytes_to_read];
         self.file
-            .read_exact_at(&mut data, offset.into())
+            .read_exact_at(&mut data, offset as u64)
             .map_err(|_| Error::FailedToReadFromFile)?;
 
         Ok(data)
@@ -59,5 +63,13 @@ impl BlockReaderWriter {
 
     pub fn calculate_offset(piece: u32, piece_length: u32, piece_offset: u32) -> u32 {
         piece * piece_length + piece_offset
+    }
+
+    fn bytes_to_read(&self, offset: u32) -> usize {
+        if (offset as usize + Self::BIT_TORRENT_BLOCK_SIZE) > self.torrent_size {
+            self.torrent_size - offset as usize
+        } else {
+            Self::BIT_TORRENT_BLOCK_SIZE
+        }
     }
 }

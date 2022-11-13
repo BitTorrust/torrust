@@ -5,35 +5,44 @@ mod test {
 
     #[test]
     fn read_and_write_pieces() {
-        let file = BlockReaderWriter::new(Path::new("with_offset.jpg"), 32 * 1024).unwrap();
-        let block_length = BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE;
+        let block_length = BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32;
+        let extra_bytes = 15 * 1024;
+        let filesize = block_length * 6 + extra_bytes;
 
-        let piece_1_block_1 = vec![0xBB; block_length];
-        file.write_block(1, 0, &piece_1_block_1).unwrap();
+        let filename = Path::new("with_offset.jpg");
+        let file = BlockReaderWriter::new(filename, block_length * 2, filesize as usize).unwrap();
 
-        let piece_1_block_2 = vec![0xBB; block_length];
-        file.write_block(1, 0x4000, &piece_1_block_2).unwrap();
+        let piece_1_block_1 = vec![0xBB; block_length as usize];
+        file.write(1, 0, &piece_1_block_1).unwrap();
 
-        let piece_0_block_1 = vec![0xAA; block_length];
-        file.write_block(0, 0, &piece_0_block_1).unwrap();
+        let piece_1_block_2 = vec![0xBB; block_length as usize];
+        file.write(1, block_length, &piece_1_block_2).unwrap();
 
-        let piece_0_block_2 = vec![0xAA; block_length];
-        file.write_block(0, 0x4000, &piece_0_block_2).unwrap();
+        let piece_0_block_1 = vec![0xAA; block_length as usize];
+        file.write(0, 0, &piece_0_block_1).unwrap();
 
-        let piece_2_block_1 = vec![0xCC; block_length];
-        file.write_block(2, 0, &piece_2_block_1).unwrap();
+        let piece_0_block_2 = vec![0xAA; block_length as usize];
+        file.write(0, block_length, &piece_0_block_2).unwrap();
 
-        let piece_2_block_2 = vec![0xCC; block_length];
-        file.write_block(2, 0x4000, &piece_2_block_2).unwrap();
+        let piece_2_block_1 = vec![0xCC; block_length as usize];
+        file.write(2, 0, &piece_2_block_1).unwrap();
 
-        assert_eq!(file.read_block(0, 0x0000).unwrap(), piece_0_block_1);
-        assert_eq!(file.read_block(0, 0x4000).unwrap(), piece_0_block_2);
+        let piece_2_block_2 = vec![0xCC; block_length as usize];
+        file.write(2, block_length, &piece_2_block_2).unwrap();
 
-        assert_eq!(file.read_block(1, 0x0000).unwrap(), piece_1_block_1);
-        assert_eq!(file.read_block(1, 0x4000).unwrap(), piece_1_block_2);
+        let extra_bytes = vec![0xDD; extra_bytes as usize];
+        file.write(3, 0, &extra_bytes).unwrap();
 
-        assert_eq!(file.read_block(2, 0x0000).unwrap(), piece_2_block_1);
-        assert_eq!(file.read_block(2, 0x4000).unwrap(), piece_2_block_2);
+        assert_eq!(file.read(0, 0).unwrap(), piece_0_block_1);
+        assert_eq!(file.read(0, block_length).unwrap(), piece_0_block_2);
+
+        assert_eq!(file.read(1, 0).unwrap(), piece_1_block_1);
+        assert_eq!(file.read(1, block_length).unwrap(), piece_1_block_2);
+
+        assert_eq!(file.read(2, 0).unwrap(), piece_2_block_1);
+        assert_eq!(file.read(2, block_length).unwrap(), piece_2_block_2);
+
+        assert_eq!(file.read(3, 0).unwrap(), extra_bytes);
     }
 
     #[test]

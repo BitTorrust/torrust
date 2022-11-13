@@ -20,4 +20,6 @@ pub enum Error {
     FailedToWriteToFile,
     FailedToReadFromFile,
     UnexpectedBlockSize,
+    InvalidWriteOffset,
+    InvalidReadOffset,
 }

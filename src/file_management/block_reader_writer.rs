@@ -37,6 +37,9 @@ impl BlockReaderWriter {
         }
 
         let offset = Self::calculate_offset(piece_index, self.piece_length(), piece_offset);
+        if offset as usize + data.len() > self.file_size {
+            return Err(Error::InvalidWriteOffset);
+        }
 
         self.file
             .write_at(data, offset.into())
@@ -48,6 +51,10 @@ impl BlockReaderWriter {
     pub fn read(&self, piece_index: u32, piece_offset: u32) -> Result<Vec<u8>, Error> {
         let offset = Self::calculate_offset(piece_index, self.piece_length(), piece_offset);
         let bytes_to_read = self.bytes_to_read(offset);
+
+        if offset as usize + bytes_to_read > self.file_size {
+            return Err(Error::InvalidReadOffset);
+        }
 
         let mut data = vec![0u8; bytes_to_read];
         self.file
@@ -61,8 +68,8 @@ impl BlockReaderWriter {
         self.piece_length
     }
 
-    pub fn calculate_offset(piece: u32, piece_length: u32, piece_offset: u32) -> u32 {
-        piece * piece_length + piece_offset
+    pub fn calculate_offset(piece_index: u32, piece_length: u32, piece_offset: u32) -> u32 {
+        piece_index * piece_length + piece_offset
     }
 
     fn bytes_to_read(&self, offset: u32) -> usize {

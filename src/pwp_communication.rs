@@ -6,12 +6,15 @@ use crate::{
 };
 
 use reqwest::Url;
+use std::{thread, time::Duration};
 
 mod tracker;
 
 pub use self::tracker::TrackerAddress;
 
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum PeerToWireState {
+    Idle,
     SendTrackerRequest,
     TrackerRequestSent,
     UnconnectedWithPeers,
@@ -32,6 +35,7 @@ pub enum PeerToWireState {
     NotInterestingAndUnchoking,
 }
 pub struct BitTorrentStateMachine {
+    last_state: PeerToWireState,
     state: PeerToWireState,
     torrent: Torrent,
     tracker_response: Option<TrackerResponse>,
@@ -45,12 +49,20 @@ impl BitTorrentStateMachine {
 
     pub fn run(torrent: Torrent) {
         let mut state_machine = BitTorrentStateMachine::new(torrent);
-        state_machine.state_transition();
+
+        loop {
+            if state_machine.last_state != state_machine.state {
+                state_machine.state_transition();
+            }
+
+            thread::sleep(Duration::from_millis(50));
+        }
     }
 
     fn new(torrent: Torrent) -> Self {
         BitTorrentStateMachine {
             state: PeerToWireState::SendTrackerRequest,
+            last_state: PeerToWireState::Idle,
             torrent,
             tracker_response: None,
         }
@@ -98,20 +110,20 @@ impl BitTorrentStateMachine {
     }
 
     pub fn send_tracker_request(&mut self) -> Result<(), Error> {
-        println!("I am in the send tracker request state");
-
         let tracker_request = Self::build_tracker_request(&self.torrent);
         let tracker_address = Self::tracker_address(&self.torrent)?;
         let response = Self::send_request(tracker_request, tracker_address)?;
 
         self.tracker_response = Some(response);
         self.state = PeerToWireState::TrackerRequestSent;
-        self.state_transition();
+
         Ok(())
     }
 
-    pub fn tracker_request_sent(&self) -> Result<(), Error> {
+    pub fn tracker_request_sent(&mut self) -> Result<(), Error> {
         println!("{:?}", self.tracker_response);
+
+        self.state = self.state;
 
         Ok(())
     }
@@ -175,17 +187,13 @@ impl BitTorrentStateMachine {
     }
 
     pub fn state_transition(&mut self) {
-        match &self.state {
-            SendTrackerRequest => self.send_tracker_request(),
-            TrackerRequestSent => self.tracker_request_sent(),
-            UnconnectedWithPeers => Self::unconnected_with_peers(),
-            HandshakeSent => Self::handshake_sent(),
+        println!("from {:?} to {:?}", self.last_state, self.state);
+        self.last_state = self.state;
 
-            NotInterestedAndChoked => Self::not_interested_and_choked(),
-            InterestedAndChoked => Self::interested_and_choked(),
-            InterestedAndUnchoked => Self::interested_and_unchoked(),
-            NotInterestedAndUnchoked => Self::not_interested_and_unchoked(),
+        match self.state {
+            PeerToWireState::SendTrackerRequest => self.send_tracker_request().unwrap(),
+            PeerToWireState::TrackerRequestSent => self.tracker_request_sent().unwrap(),
+            _ => (),
         }
-        .unwrap();
     }
 }

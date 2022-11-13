@@ -1,10 +1,10 @@
 #[cfg(test)]
 pub mod unitest {
     use std::{
-        io,
+        fs, io,
         net::{Ipv4Addr, SocketAddrV4},
         thread::sleep,
-        time::Duration, fs,
+        time::Duration,
     };
 
     use crate::pwp::Handshake;
@@ -67,8 +67,8 @@ pub mod unitest {
             run_tracker().expect("failed to execute tracker process child");
         sleep(Duration::from_secs(1));
 
-        let mut seeder_process_child =
-            run_seeder(&torrent_filename_to_download).expect("failed to execute seeder process child");
+        let mut seeder_process_child = run_seeder(&torrent_filename_to_download)
+            .expect("failed to execute seeder process child");
         sleep(Duration::from_secs(1));
 
         // TCP connection

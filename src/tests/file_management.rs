@@ -53,7 +53,8 @@ mod tests {
         use unittest::{path_build_to_pwp_message, read_bytes_from};
 
         let block_manager = venon_block_manager();
-        let expected_bytes = read_bytes_from(&path_build_to_pwp_message("venon_piece_0x00_0x0000.bin"));
+        let expected_bytes =
+            read_bytes_from(&path_build_to_pwp_message("venon_piece_0x00_0x0000.bin"));
 
         assert_eq!(block_manager.read(0x00, 0).unwrap(), expected_bytes);
     }
@@ -63,7 +64,8 @@ mod tests {
         use unittest::{path_build_to_pwp_message, read_bytes_from};
 
         let block_manager = venon_block_manager();
-        let expected_bytes = read_bytes_from(&path_build_to_pwp_message("venon_piece_0x4e_0x0000.bin"));
+        let expected_bytes =
+            read_bytes_from(&path_build_to_pwp_message("venon_piece_0x4e_0x0000.bin"));
 
         assert_eq!(block_manager.read(0x4e, 0).unwrap(), expected_bytes);
     }
@@ -73,7 +75,8 @@ mod tests {
         use unittest::{path_build_to_pwp_message, read_bytes_from};
 
         let block_manager = venon_block_manager();
-        let expected_bytes = read_bytes_from(&path_build_to_pwp_message("venon_piece_0x90_0x4000.bin"));
+        let expected_bytes =
+            read_bytes_from(&path_build_to_pwp_message("venon_piece_0x90_0x4000.bin"));
 
         assert_eq!(block_manager.read(0x90, 0x4000).unwrap(), expected_bytes);
     }

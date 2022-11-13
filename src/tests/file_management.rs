@@ -1,6 +1,7 @@
 #[cfg(test)]
-mod test {
-    use crate::BlockReaderWriter;
+mod tests {
+    use crate::tests::pwp::unittest;
+    use crate::{BlockReaderWriter, Torrent};
     use std::path::Path;
 
     #[test]
@@ -43,6 +44,46 @@ mod test {
         assert_eq!(file.read(2, block_length).unwrap(), piece_2_block_2);
 
         assert_eq!(file.read(3, 0).unwrap(), extra_bytes);
+    }
+
+    #[test]
+    fn venon_first_block() {
+        use unittest::{path_builder, read_bytes_from};
+
+        let block_manager = venon_block_manager();
+        let expected_bytes = read_bytes_from(&path_builder("venon_piece_0x00_0x0000.bin"));
+
+        assert_eq!(block_manager.read(0x00, 0).unwrap(), expected_bytes);
+    }
+
+    #[test]
+    fn venon_middle_block() {
+        use unittest::{path_builder, read_bytes_from};
+
+        let block_manager = venon_block_manager();
+        let expected_bytes = read_bytes_from(&path_builder("venon_piece_0x4e_0x0000.bin"));
+
+        assert_eq!(block_manager.read(0x4e, 0).unwrap(), expected_bytes);
+    }
+
+    #[test]
+    fn venon_last_block() {
+        use unittest::{path_builder, read_bytes_from};
+
+        let block_manager = venon_block_manager();
+        let expected_bytes = read_bytes_from(&path_builder("venon_piece_0x90_0x4000.bin"));
+
+        assert_eq!(block_manager.read(0x90, 0x4000).unwrap(), expected_bytes);
+    }
+
+    fn venon_block_manager() -> BlockReaderWriter {
+        let torrent_path = Path::new("samples/venon/venon.jpg.torrent");
+        let torrent = Torrent::from_file(torrent_path).unwrap();
+        let piece_length = torrent.piece_length_in_bytes().unwrap();
+        let size = torrent.total_length_in_bytes().unwrap();
+        let jpg_file = Path::new("samples/venon/venon.jpg");
+
+        BlockReaderWriter::new(jpg_file, piece_length, size as usize).unwrap()
     }
 
     #[test]

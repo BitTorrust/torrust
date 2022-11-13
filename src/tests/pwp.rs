@@ -16,7 +16,7 @@ pub mod unittest {
         0x2e, 0x7a, 0x71, 0x5d, 0x9d,
     ];
 
-    fn read_bytes_from(pathfile: &str) -> Vec<u8> {
+    pub fn read_bytes_from(pathfile: &str) -> Vec<u8> {
         let data_filepath = Path::new(pathfile);
         let mut data_file = File::open(data_filepath).unwrap();
         let mut data_buffer: Vec<u8> = Vec::new();
@@ -24,7 +24,7 @@ pub mod unittest {
         data_buffer
     }
 
-    fn path_builder(file: &str) -> String {
+    pub fn path_builder(file: &str) -> String {
         "samples/peer_wire_protocol-messages/".to_string() + file
     }
 

@@ -4,7 +4,7 @@ pub mod unitest {
         io,
         net::{Ipv4Addr, SocketAddrV4},
         thread::sleep,
-        time::Duration,
+        time::Duration, fs,
     };
 
     use crate::pwp::Handshake;
@@ -61,13 +61,14 @@ pub mod unitest {
     #[test]
     pub fn handshake_to_seeder() {
         // Init local network
-        let filename_to_download = "iceberg.jpg.torrent";
+        let filename_to_download = "iceberg.jpg";
+        let torrent_filename_to_download = format!("{}.torrent", filename_to_download);
         let mut tracker_process_child =
             run_tracker().expect("failed to execute tracker process child");
         sleep(Duration::from_secs(1));
 
         let mut seeder_process_child =
-            run_seeder(filename_to_download).expect("failed to execute seeder process child");
+            run_seeder(&torrent_filename_to_download).expect("failed to execute seeder process child");
         sleep(Duration::from_secs(1));
 
         // TCP connection
@@ -116,5 +117,10 @@ pub mod unitest {
 
         tracker_process_child.kill().unwrap();
         seeder_process_child.kill().unwrap();
+
+        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_download);
+        fs::remove_file(seeder_download_file).unwrap();
+        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_download);
+        fs::remove_file(seeder_aria_file).unwrap();
     }
 }

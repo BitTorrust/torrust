@@ -1,10 +1,11 @@
 #!/bin/bash
 
-ICEBERG_FOLDER="./samples"
+UPLOAD_FOLDER="./samples/upload"
+UPLOAD_TORRENT_FILE=$UPLOAD_FOLDER"/venon.jpg.torrent"
 OPENTRACKER_IP_ADDRESS="127.0.0.1"
 OPENTRACKER_PORT=6969
 
 PEER_BITTORRENT_DOWNLOAD_PORT=$1    # given port as the first argument
 
 opentracker -i $OPENTRACKER_IP_ADDRESS -p $OPENTRACKER_PORT & \
-aria2c -V -d $ICEBERG_FOLDER $ICEBERG_FOLDER/iceberg.jpg.torrent --listen-port=$PEER_BITTORRENT_DOWNLOAD_PORT
+aria2c -V -d $UPLOAD_FOLDER $UPLOAD_TORRENT_FILE --listen-port=$PEER_BITTORRENT_DOWNLOAD_PORT

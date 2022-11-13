@@ -6,7 +6,7 @@ pub mod test {
 
     #[test]
     pub fn parse_iceberg_image() -> Result<(), Error> {
-        let filepath = Path::new("samples/iceberg.jpg.torrent");
+        let filepath = Path::new("samples/upload/iceberg.jpg.torrent");
         let mut file = File::open(filepath).map_err(|_| Error::FailedToOpenTorrentFile)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)

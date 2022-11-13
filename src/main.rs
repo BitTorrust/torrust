@@ -13,6 +13,7 @@ use app::App;
 mod cli;
 mod http;
 mod pwp;
+mod tcp;
 
 #[cfg(test)]
 mod tests;

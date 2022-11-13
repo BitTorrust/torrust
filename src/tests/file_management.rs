@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::pwp::unittest;
     use crate::{BlockReaderWriter, Torrent};
-    use std::path::Path;
+    use std::{fs, path::Path};
 
     #[test]
     fn read_and_write_pieces() {
@@ -44,34 +44,39 @@ mod tests {
         assert_eq!(file.read(2, block_length).unwrap(), piece_2_block_2);
 
         assert_eq!(file.read(3, 0).unwrap(), extra_bytes);
+
+        fs::remove_file(filename).unwrap();
     }
 
     #[test]
     fn venon_first_block() {
-        use unittest::{path_builder, read_bytes_from};
+        use unittest::{path_build_to_pwp_message, read_bytes_from};
 
         let block_manager = venon_block_manager();
-        let expected_bytes = read_bytes_from(&path_builder("venon_piece_0x00_0x0000.bin"));
+        let expected_bytes =
+            read_bytes_from(&path_build_to_pwp_message("venon_piece_0x00_0x0000.bin"));
 
         assert_eq!(block_manager.read(0x00, 0).unwrap(), expected_bytes);
     }
 
     #[test]
     fn venon_middle_block() {
-        use unittest::{path_builder, read_bytes_from};
+        use unittest::{path_build_to_pwp_message, read_bytes_from};
 
         let block_manager = venon_block_manager();
-        let expected_bytes = read_bytes_from(&path_builder("venon_piece_0x4e_0x0000.bin"));
+        let expected_bytes =
+            read_bytes_from(&path_build_to_pwp_message("venon_piece_0x4e_0x0000.bin"));
 
         assert_eq!(block_manager.read(0x4e, 0).unwrap(), expected_bytes);
     }
 
     #[test]
     fn venon_last_block() {
-        use unittest::{path_builder, read_bytes_from};
+        use unittest::{path_build_to_pwp_message, read_bytes_from};
 
         let block_manager = venon_block_manager();
-        let expected_bytes = read_bytes_from(&path_builder("venon_piece_0x90_0x4000.bin"));
+        let expected_bytes =
+            read_bytes_from(&path_build_to_pwp_message("venon_piece_0x90_0x4000.bin"));
 
         assert_eq!(block_manager.read(0x90, 0x4000).unwrap(), expected_bytes);
     }

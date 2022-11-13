@@ -1,7 +1,10 @@
+use strum_macros::EnumIter;
+
+#[derive(Debug, PartialEq, EnumIter, Copy, Clone)]
 pub enum MessageType {
     Unchoke,
     Interested,
-    NotIterested,
+    NotInterested,
     Have,
     Bitfield,
     Request,
@@ -14,7 +17,7 @@ impl MessageType {
         match self {
             MessageType::Unchoke => 1,
             MessageType::Interested => 2,
-            MessageType::NotIterested => 3,
+            MessageType::NotInterested => 3,
             MessageType::Have => 4,
             MessageType::Bitfield => 5,
             MessageType::Request => 6,
@@ -22,12 +25,12 @@ impl MessageType {
         }
     }
 
-    /// Length of the message without variable size field taken in account
+    /// Length of the message without variable size field and length field (4 bytes) taken in account
     pub fn base_length(self) -> u32 {
         match self {
             MessageType::Unchoke => 1,
             MessageType::Interested => 1,
-            MessageType::NotIterested => 1,
+            MessageType::NotInterested => 1,
             MessageType::Have => 5,
             MessageType::Bitfield => 1,
             MessageType::Request => 13,

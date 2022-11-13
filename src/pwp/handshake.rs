@@ -1,6 +1,7 @@
 use crate::pwp::{FromBytes, IntoBytes};
 use crate::Error;
 
+#[derive(Debug)]
 pub struct Handshake {
     /// string length of <pstr>, as a single raw byte
     pstrlen: u8,

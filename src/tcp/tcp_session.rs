@@ -30,7 +30,7 @@ impl TCPSession {
 
     /// Write the received bytes in the buffer
     /// Returns the number of bytes received
-    pub fn receive(&self, buffer: &mut Vec<u8>) -> Result<usize, io::Error> {
+    pub fn receive(&self, buffer: &mut [u8]) -> Result<usize, io::Error> {
         self.steam().read(buffer)
     }
 }

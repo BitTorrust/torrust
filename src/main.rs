@@ -16,14 +16,11 @@ mod pwp;
 mod tcp;
 
 mod pwp_communication;
-pub use pwp_communication::PeerToWireCommunication;
+pub use pwp_communication::BitTorrentStateMachine;
 
 #[cfg(test)]
 mod tests;
 
 fn main() -> Result<(), Error> {
-    //App::run()
-    let p2w_communication = PeerToWireCommunication::new();
-    p2w_communication.state_transition();
-    Ok(())
+    App::run()
 }

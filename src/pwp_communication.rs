@@ -2,6 +2,8 @@ use crate::{
     app::App,
     error::Error,
     http::{Event, TrackerRequest, TrackerResponse},
+    pwp::{Bitfield, FromBytes, Handshake},
+    tcp::TCPSession,
     torrent::Torrent,
 };
 
@@ -36,6 +38,7 @@ pub enum PeerToWireState {
 }
 pub struct BitTorrentStateMachine {
     last_state: PeerToWireState,
+    tcp_session: Option<TCPSession>,
     state: PeerToWireState,
     torrent: Torrent,
     tracker_response: Option<TrackerResponse>,
@@ -62,6 +65,7 @@ impl BitTorrentStateMachine {
     fn new(torrent: Torrent) -> Self {
         BitTorrentStateMachine {
             state: PeerToWireState::SendTrackerRequest,
+            tcp_session: None,
             last_state: PeerToWireState::Idle,
             torrent,
             tracker_response: None,
@@ -123,8 +127,24 @@ impl BitTorrentStateMachine {
     pub fn tracker_request_sent(&mut self) -> Result<(), Error> {
         println!("{:?}", self.tracker_response);
 
-        self.state = self.state;
+        if let Some(tracker_response) = self.tracker_response.as_ref() {
+            let info_hash = self.torrent.info_hash().unwrap();
+            let peer = tracker_response.peers().unwrap().last().unwrap();
+            let handshake = Handshake::new(info_hash, Self::PEER_ID);
 
+            self.tcp_session
+                .replace(TCPSession::connect(peer.clone()).unwrap());
+
+            if let Some(tcp_session) = &self.tcp_session {
+                tcp_session.send(handshake).unwrap();
+            } else {
+                panic!("cant connect to peer");
+            }
+        } else {
+            panic!("tracker response not received");
+        }
+
+        self.state = PeerToWireState::HandshakeSent;
         Ok(())
     }
 
@@ -133,8 +153,17 @@ impl BitTorrentStateMachine {
         Ok(())
     }
 
-    pub fn handshake_sent() -> Result<(), Error> {
+    pub fn handshake_sent(&mut self) -> Result<(), Error> {
         println!("I am in the handshake state");
+
+        if let Some(tcp_session) = &self.tcp_session {
+            let mut buffer = vec![0; 128];
+            tcp_session.receive(&mut buffer).unwrap();
+            let (handshake_response, _) = Handshake::from_bytes(&buffer).unwrap();
+            println!("handshake response: {:?}", handshake_response);
+        }
+
+        self.state = PeerToWireState::ConnectedWithPeer;
         Ok(())
     }
     pub fn wait_handshake() -> Result<(), Error> {
@@ -142,8 +171,13 @@ impl BitTorrentStateMachine {
         Ok(())
     }
 
-    pub fn connection_with_peer() -> Result<(), Error> {
-        println!("I am in the connection with peer state");
+    pub fn connection_with_peer(&mut self) -> Result<(), Error> {
+        if let Some(tcp_session) = &self.tcp_session {
+            let mut buffer = vec![0; 128];
+            tcp_session.receive(&mut buffer).unwrap();
+            let (handshake_response, _) = Bitfield::from_bytes(&buffer).unwrap();
+            println!("bitfield: {:?}", handshake_response);
+        }
         Ok(())
     }
     pub fn not_interested_and_choked() -> Result<(), Error> {
@@ -193,6 +227,8 @@ impl BitTorrentStateMachine {
         match self.state {
             PeerToWireState::SendTrackerRequest => self.send_tracker_request().unwrap(),
             PeerToWireState::TrackerRequestSent => self.tracker_request_sent().unwrap(),
+            PeerToWireState::HandshakeSent => self.handshake_sent().unwrap(),
+            PeerToWireState::ConnectedWithPeer => self.connection_with_peer().unwrap(),
             _ => (),
         }
     }

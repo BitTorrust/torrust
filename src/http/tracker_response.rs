@@ -17,6 +17,10 @@ pub struct TrackerResponse {
 }
 
 impl TrackerResponse {
+    pub fn peers(&self) -> Option<&Vec<Peer>> {
+        self.peers.as_ref()
+    }
+
     pub fn from_bencode(data: &[u8]) -> Result<Self, Error> {
         let mut decoder = Decoder::new(data);
         let object = decoder

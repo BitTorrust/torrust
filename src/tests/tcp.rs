@@ -1,15 +1,19 @@
 #[cfg(test)]
 pub mod unitest {
     use std::{
-        fs, io,
+        fs::{self, File},
+        io::{self, Read},
         net::{Ipv4Addr, SocketAddrV4},
+        path::Path,
         thread::sleep,
         time::Duration,
     };
 
-    use crate::pwp::Handshake;
+    use bendy::decoding::Decoder;
+
     use crate::tcp::TCPSession;
     use crate::{http::Peer, pwp::FromBytes};
+    use crate::{pwp::Handshake, Error, Torrent};
     use std::process::{Child, Command};
 
     const INFO_ID: [u8; 20] = [
@@ -52,7 +56,7 @@ pub mod unitest {
             ))
             .arg("-V")
             .arg("-d")
-            .arg(DOWNLOAD_FILES_FOLDER.to_string())
+            .arg(UPLOAD_FILES_FOLDER.to_string())
             .arg(format!("--listen-port={}", SEEDER_TCP_DOWNLOAD_PORT))
             .spawn()
     }
@@ -61,13 +65,13 @@ pub mod unitest {
     #[test]
     pub fn handshake_to_seeder() {
         // Init local network
-        let filename_to_download = "iceberg.jpg";
-        let torrent_filename_to_download = format!("{}.torrent", filename_to_download);
+        let filename_to_upload = "venon.jpg";
+        let torrent_filename_to_upload = format!("{}.torrent", filename_to_upload);
         let mut tracker_process_child =
             run_tracker().expect("failed to execute tracker process child");
         sleep(Duration::from_secs(1));
 
-        let mut seeder_process_child = run_seeder(&torrent_filename_to_download)
+        let mut seeder_process_child = run_seeder(&torrent_filename_to_upload)
             .expect("failed to execute seeder process child");
         sleep(Duration::from_secs(1));
 
@@ -86,16 +90,24 @@ pub mod unitest {
         };
 
         // Leecher --[Handshake]--> Seeder
-        let handshake = Handshake::new(INFO_ID, PEER_ID);
+        let filepath = format!("{}/{}", UPLOAD_FILES_FOLDER, torrent_filename_to_upload);
+        let filepath = Path::new(&filepath);
+        let mut file = File::open(filepath).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        let mut bencode_decoder = Decoder::new(&buffer);
+        let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
+        let info_hash = maybe_torrent.unwrap().info_hash().unwrap();
+        let handshake = Handshake::new(info_hash, PEER_ID);
         let expected_handshake_length_in_byte = 68;
         assert_eq!(
             tcp_session.send(handshake).unwrap(),
             expected_handshake_length_in_byte
         );
 
-        // Leecher <--[Handshake, Bitfield?]-- Seeder
+        // Leecher <--[Handshake]-- Seeder
         let mut response_bytes: Vec<u8> = vec![0; 128];
-        let bytes_received_length = match tcp_session.receive(&mut response_bytes) {
+        let _ = match tcp_session.receive(&mut response_bytes) {
             Ok(size) => size,
             Err(error) => {
                 tracker_process_child.kill().unwrap();
@@ -103,7 +115,6 @@ pub mod unitest {
                 panic!("{:?}", error);
             }
         };
-        assert_eq!(bytes_received_length, expected_handshake_length_in_byte);
 
         let received_handshake = match Handshake::from_bytes(&response_bytes) {
             Ok(handshake_size) => handshake_size.0,
@@ -113,14 +124,14 @@ pub mod unitest {
                 panic!("{:?}", error);
             }
         };
-        assert_eq!(received_handshake.info_hash(), INFO_ID);
+        assert_eq!(received_handshake.info_hash(), info_hash);
 
         tracker_process_child.kill().unwrap();
         seeder_process_child.kill().unwrap();
 
-        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_download);
-        fs::remove_file(seeder_download_file).unwrap();
-        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_download);
-        fs::remove_file(seeder_aria_file).unwrap();
+        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_download_file);
+        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_aria_file);
     }
 }

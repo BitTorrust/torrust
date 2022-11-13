@@ -1,11 +1,15 @@
 mod torrent;
 pub use torrent::Torrent;
+
 mod error;
 pub use error::Error;
 
-use crate::app::App;
+mod file_management;
+pub use file_management::BlockReaderWriter;
 
 mod app;
+use app::App;
+
 mod cli;
 mod http;
 mod pwp;

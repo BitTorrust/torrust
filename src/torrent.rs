@@ -1,7 +1,7 @@
 use crate::Error;
 use bendy::decoding::{Decoder, DictDecoder, Object};
 use sha1::{Digest, Sha1};
-use std::str::FromStr;
+use std::{fs::File, io::Read, path::Path, str::FromStr};
 
 #[derive(Debug)]
 pub struct Torrent {
@@ -86,6 +86,18 @@ impl Torrent {
             }
         }
         Ok(())
+    }
+
+    pub fn from_file(filepath: &Path) -> Result<Torrent, Error> {
+        let mut file = File::open(filepath).map_err(|_| Error::FailedToOpenTorrentFile)?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .map_err(|_| Error::FailedToReadTorrentFile)?;
+
+        let mut bencode_decoder = Decoder::new(&buffer);
+        let torrent = Torrent::from_bencode(&mut bencode_decoder)?;
+
+        Ok(torrent)
     }
 
     pub fn from_bencode(bencode_decoder: &mut Decoder) -> Result<Torrent, Error> {

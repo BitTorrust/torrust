@@ -15,4 +15,11 @@ pub enum Error {
     TrackerPortNotProvided,
     FailedToDecodeBencodeData,
     TrackerConnectionNotPossible,
+    DirectoryDoesNotExist,
+    FailedToCreateFile,
+    FailedToWriteToFile,
+    FailedToReadFromFile,
+    UnexpectedBlockSize,
+    InvalidWriteOffset,
+    InvalidReadOffset,
 }

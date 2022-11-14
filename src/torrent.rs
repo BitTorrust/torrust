@@ -137,6 +137,6 @@ impl Torrent {
     }
 }
 
-fn div_ceil(a: u32, b: u32) -> u32 {
+pub fn div_ceil(a: u32, b: u32) -> u32 {
     a / b + if a % b == 0 { 0 } else { 1 }
 }

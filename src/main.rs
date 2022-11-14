@@ -1,5 +1,5 @@
 mod torrent;
-pub use torrent::Torrent;
+pub use torrent::{div_ceil, Torrent};
 
 mod error;
 pub use error::Error;

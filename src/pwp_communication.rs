@@ -2,11 +2,12 @@ use crate::{
     app::App,
     error::Error,
     http::{Event, TrackerRequest, TrackerResponse},
-    pwp::{Bitfield, FromBytes, Handshake},
+    pwp::{Bitfield, FromBytes, Handshake, Interested, Piece, Request, Unchoke},
     tcp::TCPSession,
     torrent::Torrent,
 };
 
+use bit_vec::BitVec;
 use reqwest::Url;
 use std::{thread, time::Duration};
 
@@ -42,6 +43,7 @@ pub struct BitTorrentStateMachine {
     state: PeerToWireState,
     torrent: Torrent,
     tracker_response: Option<TrackerResponse>,
+    peer_bitfield: Option<Bitfield>,
 }
 
 impl BitTorrentStateMachine {
@@ -69,6 +71,7 @@ impl BitTorrentStateMachine {
             last_state: PeerToWireState::Idle,
             torrent,
             tracker_response: None,
+            peer_bitfield: None,
         }
     }
 
@@ -157,41 +160,102 @@ impl BitTorrentStateMachine {
         println!("I am in the handshake state");
 
         if let Some(tcp_session) = &self.tcp_session {
-            let mut buffer = vec![0; 128];
+            let mut buffer = vec![0; 68];
             tcp_session.receive(&mut buffer).unwrap();
             let (handshake_response, _) = Handshake::from_bytes(&buffer).unwrap();
             println!("handshake response: {:?}", handshake_response);
         }
 
-        self.state = PeerToWireState::ConnectedWithPeer;
+        self.state = PeerToWireState::NotInterestedAndChoked;
         Ok(())
     }
+
     pub fn wait_handshake() -> Result<(), Error> {
         println!("I am in the wait handshake state");
         Ok(())
     }
 
-    pub fn connection_with_peer(&mut self) -> Result<(), Error> {
+    pub fn not_interested_and_choked(&mut self) -> Result<(), Error> {
+        println!("I am in the not interested and choked state");
+
         if let Some(tcp_session) = &self.tcp_session {
-            let mut buffer = vec![0; 128];
+            let bitfield_length =
+                4 + 1 + crate::torrent::div_ceil(self.torrent.number_of_pieces().unwrap(), 8);
+
+            let mut buffer = vec![0; bitfield_length as usize];
             tcp_session.receive(&mut buffer).unwrap();
-            let (handshake_response, _) = Bitfield::from_bytes(&buffer).unwrap();
-            println!("bitfield: {:?}", handshake_response);
+            let (received_bitfield, _) = Bitfield::from_bytes(&buffer).unwrap();
+            println!("bitfield received: {:?}", received_bitfield);
+            self.peer_bitfield.replace(received_bitfield);
+
+            let bitfield = Bitfield::new(BitVec::from_elem(
+                self.torrent.number_of_pieces().unwrap() as usize,
+                false,
+            ));
+            tcp_session.send(bitfield).unwrap();
+
+            let interested = Interested::new();
+            tcp_session.send(interested).unwrap();
+
+            self.state = PeerToWireState::InterestedAndChoked;
+        } else {
+            panic!("SESSION IS DONE");
         }
-        Ok(())
-    }
-    pub fn not_interested_and_choked() -> Result<(), Error> {
-        println!("I am in the Not interested and choked state");
+
         Ok(())
     }
 
-    pub fn interested_and_choked() -> Result<(), Error> {
+    pub fn interested_and_choked(&mut self) -> Result<(), Error> {
         println!("I am in the interested and choked state");
+
+        if let Some(tcp_session) = &self.tcp_session {
+            let mut buffer = vec![0; 5];
+            tcp_session.receive(&mut buffer).unwrap();
+
+            let unchoke = Unchoke::from_bytes(&buffer).unwrap();
+            println!("Unchoke: {:?}", unchoke);
+
+            let total_pieces = self.torrent.number_of_pieces().unwrap();
+            println!("total pieces: {:?}", total_pieces);
+            let piece_length = self.torrent.piece_length_in_bytes().unwrap();
+
+            for piece in 0..total_pieces {
+                let bytes_to_read = 13
+                    + if piece == total_pieces - 1 {
+                        self.torrent.total_length_in_bytes().unwrap() % piece_length
+                    } else {
+                        piece_length
+                    } as usize;
+
+                println!("asked for piece: {:?}", piece);
+                let request = Request::new(piece, 0, bytes_to_read as u32 - 13);
+                tcp_session.send(request).unwrap();
+
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                println!("bytes to read: {}", bytes_to_read);
+                let mut buffer = vec![0; bytes_to_read];
+
+                tcp_session.receive(&mut buffer).unwrap();
+                let (piece, _) = Piece::from_bytes(&buffer).unwrap();
+                println!(
+                    "received: {:?}@{:?}",
+                    piece.piece_index(),
+                    piece.begin_offset_of_piece()
+                );
+            }
+
+            self.state = PeerToWireState::InterestedAndUnchoked;
+        }
+
         Ok(())
     }
 
-    pub fn interested_and_unchoked() -> Result<(), Error> {
+    pub fn interested_and_unchoked(&mut self) -> Result<(), Error> {
         println!("I am in the interested and unchoked state");
+        // request ->
+        // <- piece
+        // have piece ->
+        // // not interested
         Ok(())
     }
 
@@ -225,11 +289,14 @@ impl BitTorrentStateMachine {
         self.last_state = self.state;
 
         match self.state {
-            PeerToWireState::SendTrackerRequest => self.send_tracker_request().unwrap(),
-            PeerToWireState::TrackerRequestSent => self.tracker_request_sent().unwrap(),
-            PeerToWireState::HandshakeSent => self.handshake_sent().unwrap(),
-            PeerToWireState::ConnectedWithPeer => self.connection_with_peer().unwrap(),
-            _ => (),
+            PeerToWireState::SendTrackerRequest => self.send_tracker_request(),
+            PeerToWireState::TrackerRequestSent => self.tracker_request_sent(),
+            PeerToWireState::HandshakeSent => self.handshake_sent(),
+            PeerToWireState::NotInterestedAndChoked => self.not_interested_and_choked(),
+            PeerToWireState::InterestedAndChoked => self.interested_and_choked(),
+            PeerToWireState::InterestedAndUnchoked => self.interested_and_unchoked(),
+            _ => unimplemented!(),
         }
+        .unwrap();
     }
 }

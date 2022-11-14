@@ -1,5 +1,6 @@
 use {crate::http::Event, crate::Error, reqwest::Url};
 
+#[derive(Debug)]
 pub struct TrackerRequest {
     info_hash: [u8; 20],
     peer_id: [u8; 20],

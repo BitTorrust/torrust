@@ -32,8 +32,6 @@ pub enum PeerToWireState {
     InterestedAndChoked,
     InterestedAndUnchoked,
     NotInterestedAndUnchoked,
-    //upload states, ahora se puede adjuntar aqui porque sí son excluyentes, no lo serán en el caso de multiples clientes. En este descargo o envío
-    // para el caso diferente de 0% y 100%, puedo tener estados de descarga y estados de carga con un mismo par, entonces habría que hacer 2 maquinas de estados
     NotInterestingAndChoking,
     InterestingAndChoking,
     InterestingAndUnchoking,
@@ -215,11 +213,59 @@ impl BitTorrentStateMachine {
         let unchoke = Unchoke::from_bytes(&buffer).unwrap();
         println!("{:?}", unchoke);
 
+        self.state = PeerToWireState::InterestedAndUnchoked;
+
+        Ok(())
+    }
+
+    pub fn interested_and_unchoked(&mut self) -> Result<(), Error> {
+        let tcp_session = self.tcp_session()?;
         self.download_pieces(&tcp_session);
 
         self.state = PeerToWireState::Done;
 
         Ok(())
+    }
+
+    pub fn not_interested_and_unchoked() -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    pub fn not_interesting_and_choking() -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    pub fn interesting_and_choking() -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    pub fn interesting_and_unchoking() -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    pub fn not_interesting_and_unchoking() -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    pub fn done(&self) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn state_transition(&mut self) {
+        println!("From state {:?} to {:?}", self.last_state, self.state);
+        self.last_state = self.state;
+
+        match self.state {
+            PeerToWireState::SendTrackerRequest => self.send_tracker_request(),
+            PeerToWireState::TrackerRequestSent => self.tracker_request_sent(),
+            PeerToWireState::HandshakeSent => self.handshake_sent(),
+            PeerToWireState::NotInterestedAndChoked => self.not_interested_and_choked(),
+            PeerToWireState::InterestedAndChoked => self.interested_and_choked(),
+            PeerToWireState::InterestedAndUnchoked => self.interested_and_unchoked(),
+            PeerToWireState::Done => self.done(),
+            _ => unimplemented!(),
+        }
+        .unwrap();
     }
 
     fn download_pieces(&self, tcp_session: &TCPSession) {
@@ -269,51 +315,6 @@ impl BitTorrentStateMachine {
 
         let not_interested = NotInterested::new();
         tcp_session.send(not_interested).unwrap();
-    }
-
-    pub fn interested_and_unchoked(&mut self) -> Result<(), Error> {
-        unimplemented!()
-    }
-
-    pub fn not_interested_and_unchoked() -> Result<(), Error> {
-        unimplemented!()
-    }
-
-    pub fn not_interesting_and_choking() -> Result<(), Error> {
-        unimplemented!()
-    }
-
-    pub fn interesting_and_choking() -> Result<(), Error> {
-        unimplemented!()
-    }
-
-    pub fn interesting_and_unchoking() -> Result<(), Error> {
-        unimplemented!()
-    }
-
-    pub fn not_interesting_and_unchoking() -> Result<(), Error> {
-        unimplemented!()
-    }
-
-    pub fn done(&self) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub fn state_transition(&mut self) {
-        println!("From state {:?} to {:?}", self.last_state, self.state);
-        self.last_state = self.state;
-
-        match self.state {
-            PeerToWireState::SendTrackerRequest => self.send_tracker_request(),
-            PeerToWireState::TrackerRequestSent => self.tracker_request_sent(),
-            PeerToWireState::HandshakeSent => self.handshake_sent(),
-            PeerToWireState::NotInterestedAndChoked => self.not_interested_and_choked(),
-            PeerToWireState::InterestedAndChoked => self.interested_and_choked(),
-            PeerToWireState::InterestedAndUnchoked => self.interested_and_unchoked(),
-            PeerToWireState::Done => self.done(),
-            _ => unimplemented!(),
-        }
-        .unwrap();
     }
 
     fn tcp_session(&self) -> Result<&TCPSession, Error> {

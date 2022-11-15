@@ -12,7 +12,8 @@ impl App {
         let args = Args::parse();
         let torrent = Self::parse_torrent(args.torrent_file())?;
         let directory = args.working_directory();
-        let bittorrent_communication = BitTorrentStateMachine::run(torrent, directory);
+
+        BitTorrentStateMachine::run(torrent, directory);
 
         Ok(())
     }

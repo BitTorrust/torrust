@@ -1,5 +1,4 @@
 use crate::{
-    app::App,
     error::Error,
     file_management::BlockReaderWriter,
     http::{Event, TrackerRequest, TrackerResponse},
@@ -13,11 +12,7 @@ use crate::{
 
 use bit_vec::BitVec;
 use reqwest::Url;
-use std::{
-    path::{Path, PathBuf},
-    thread,
-    time::Duration,
-};
+use std::{path::PathBuf, thread, time::Duration};
 
 mod tracker_address;
 pub use tracker_address::TrackerAddress;

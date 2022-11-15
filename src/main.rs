@@ -1,5 +1,5 @@
 mod torrent;
-pub use torrent::Torrent;
+pub use torrent::{div_ceil, Torrent};
 
 mod error;
 pub use error::Error;
@@ -14,6 +14,9 @@ mod cli;
 mod http;
 mod pwp;
 mod tcp;
+
+mod pwp_communication;
+pub use pwp_communication::BitTorrentStateMachine;
 
 #[cfg(test)]
 mod tests;

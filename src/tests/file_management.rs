@@ -82,11 +82,11 @@ mod tests {
     }
 
     fn venon_block_manager() -> BlockReaderWriter {
-        let torrent_path = Path::new("samples/venon/venon.jpg.torrent");
+        let torrent_path = Path::new("samples/upload/venon.jpg.torrent");
         let torrent = Torrent::from_file(torrent_path).unwrap();
         let piece_length = torrent.piece_length_in_bytes().unwrap();
         let size = torrent.total_length_in_bytes().unwrap();
-        let jpg_file = Path::new("samples/venon/venon.jpg");
+        let jpg_file = Path::new("samples/upload/venon.jpg");
 
         BlockReaderWriter::new(jpg_file, piece_length, size as usize).unwrap()
     }

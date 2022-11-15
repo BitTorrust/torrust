@@ -44,6 +44,7 @@ pub enum Error {
 
     // TCP error
     FailedToConnectToPeer,
+    TcpSessionDoesNotExist,
 
     // File management error
     DirectoryDoesNotExist,

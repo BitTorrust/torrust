@@ -3,7 +3,6 @@ use crate::{
     Error,
 };
 use bit_vec::BitVec;
-use sha1::digest::typenum::Bit;
 
 /// bitfield: <len=0001+X><id=5><bitfield>
 #[derive(Debug)]

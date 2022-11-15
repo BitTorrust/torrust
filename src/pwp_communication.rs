@@ -1,19 +1,20 @@
 use crate::{
     app::App,
     error::Error,
+    file_management::BlockReaderWriter,
     http::{Event, TrackerRequest, TrackerResponse},
     pwp::{Bitfield, FromBytes, Handshake, Interested, Piece, Request, Unchoke},
     tcp::TCPSession,
+    torrent,
     torrent::Torrent,
 };
 
 use bit_vec::BitVec;
 use reqwest::Url;
-use std::{thread, time::Duration};
+use std::{path::Path, thread, time::Duration};
 
 mod tracker;
-
-pub use self::tracker::TrackerAddress;
+pub use tracker::TrackerAddress;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum PeerToWireState {
@@ -36,7 +37,10 @@ pub enum PeerToWireState {
     InterestingAndChoking,
     InterestingAndUnchoking,
     NotInterestingAndUnchoking,
+
+    Done,
 }
+
 pub struct BitTorrentStateMachine {
     last_state: PeerToWireState,
     tcp_session: Option<TCPSession>,
@@ -56,6 +60,11 @@ impl BitTorrentStateMachine {
         let mut state_machine = BitTorrentStateMachine::new(torrent);
 
         loop {
+            if state_machine.state == PeerToWireState::Done {
+                state_machine.done().unwrap();
+                break;
+            }
+
             if state_machine.last_state != state_machine.state {
                 state_machine.state_transition();
             }
@@ -130,63 +139,52 @@ impl BitTorrentStateMachine {
     pub fn tracker_request_sent(&mut self) -> Result<(), Error> {
         println!("{:?}", self.tracker_response);
 
-        if let Some(tracker_response) = self.tracker_response.as_ref() {
-            let info_hash = self.torrent.info_hash().unwrap();
-            let peer = tracker_response.peers().unwrap().last().unwrap();
-            let handshake = Handshake::new(info_hash, Self::PEER_ID);
+        let tracker_response = self.tracker_response()?;
+        let info_hash = self.torrent.info_hash().unwrap();
+        let handshake = Handshake::new(info_hash, Self::PEER_ID);
 
-            self.tcp_session
-                .replace(TCPSession::connect(peer.clone()).unwrap());
+        // TODO: talk to the right peers
+        let peer = tracker_response.peers().unwrap().last().unwrap();
+        let tcp_session = TCPSession::connect(peer.clone()).unwrap();
+        self.tcp_session.replace(tcp_session);
 
-            if let Some(tcp_session) = &self.tcp_session {
-                tcp_session.send(handshake).unwrap();
-            } else {
-                panic!("cant connect to peer");
-            }
-        } else {
-            panic!("tracker response not received");
-        }
+        let tcp_session = self.tcp_session()?;
+        tcp_session.send(handshake).unwrap();
 
         self.state = PeerToWireState::HandshakeSent;
         Ok(())
     }
 
     pub fn unconnected_with_peers() -> Result<(), Error> {
-        println!("I am in the unconnected with peers state");
-        Ok(())
+        unimplemented!()
     }
 
     pub fn handshake_sent(&mut self) -> Result<(), Error> {
-        println!("I am in the handshake state");
-
-        if let Some(tcp_session) = &self.tcp_session {
-            let mut buffer = vec![0; 68];
-            tcp_session.receive(&mut buffer).unwrap();
-            let (handshake_response, _) = Handshake::from_bytes(&buffer).unwrap();
-            println!("handshake response: {:?}", handshake_response);
-        }
+        let tcp_session = self.tcp_session()?;
+        let mut buffer = vec![0; 68];
+        tcp_session.receive(&mut buffer).unwrap();
+        let (handshake_response, _) = Handshake::from_bytes(&buffer).unwrap();
+        println!("{:?}", handshake_response);
 
         self.state = PeerToWireState::NotInterestedAndChoked;
         Ok(())
     }
 
     pub fn wait_handshake() -> Result<(), Error> {
-        println!("I am in the wait handshake state");
-        Ok(())
+        unimplemented!()
     }
 
     pub fn not_interested_and_choked(&mut self) -> Result<(), Error> {
-        println!("I am in the not interested and choked state");
-
-        if let Some(tcp_session) = &self.tcp_session {
+        let received_bitfield = {
+            let tcp_session = self.tcp_session()?;
             let bitfield_length =
-                4 + 1 + crate::torrent::div_ceil(self.torrent.number_of_pieces().unwrap(), 8);
+                5 + torrent::div_ceil(self.torrent.number_of_pieces().unwrap(), 8);
 
             let mut buffer = vec![0; bitfield_length as usize];
             tcp_session.receive(&mut buffer).unwrap();
+
             let (received_bitfield, _) = Bitfield::from_bytes(&buffer).unwrap();
-            println!("bitfield received: {:?}", received_bitfield);
-            self.peer_bitfield.replace(received_bitfield);
+            println!("{:?}", received_bitfield);
 
             let bitfield = Bitfield::new(BitVec::from_elem(
                 self.torrent.number_of_pieces().unwrap() as usize,
@@ -197,95 +195,100 @@ impl BitTorrentStateMachine {
             let interested = Interested::new();
             tcp_session.send(interested).unwrap();
 
-            self.state = PeerToWireState::InterestedAndChoked;
-        } else {
-            panic!("SESSION IS DONE");
-        }
+            received_bitfield
+        };
+
+        self.peer_bitfield.replace(received_bitfield);
+        self.state = PeerToWireState::InterestedAndChoked;
 
         Ok(())
     }
 
     pub fn interested_and_choked(&mut self) -> Result<(), Error> {
-        println!("I am in the interested and choked state");
+        let tcp_session = self.tcp_session()?;
+        let mut buffer = vec![0; 5];
+        tcp_session.receive(&mut buffer).unwrap();
 
-        if let Some(tcp_session) = &self.tcp_session {
-            let mut buffer = vec![0; 5];
-            tcp_session.receive(&mut buffer).unwrap();
+        let unchoke = Unchoke::from_bytes(&buffer).unwrap();
+        println!("{:?}", unchoke);
 
-            let unchoke = Unchoke::from_bytes(&buffer).unwrap();
-            println!("Unchoke: {:?}", unchoke);
+        self.download_pieces(&tcp_session);
 
-            let total_pieces = self.torrent.number_of_pieces().unwrap();
-            println!("total pieces: {:?}", total_pieces);
-            let piece_length = self.torrent.piece_length_in_bytes().unwrap();
-
-            for piece in 0..total_pieces {
-                let bytes_to_read = 13
-                    + if piece == total_pieces - 1 {
-                        self.torrent.total_length_in_bytes().unwrap() % piece_length
-                    } else {
-                        piece_length
-                    } as usize;
-
-                println!("asked for piece: {:?}", piece);
-                let request = Request::new(piece, 0, bytes_to_read as u32 - 13);
-                tcp_session.send(request).unwrap();
-
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                println!("bytes to read: {}", bytes_to_read);
-                let mut buffer = vec![0; bytes_to_read];
-
-                tcp_session.receive(&mut buffer).unwrap();
-                let (piece, _) = Piece::from_bytes(&buffer).unwrap();
-                println!(
-                    "received: {:?}@{:?}",
-                    piece.piece_index(),
-                    piece.begin_offset_of_piece()
-                );
-            }
-
-            self.state = PeerToWireState::InterestedAndUnchoked;
-        }
+        self.state = PeerToWireState::Done;
 
         Ok(())
+    }
+
+    fn download_pieces(&self, tcp_session: &TCPSession) {
+        println!("Downloading pieces");
+
+        let total_length = self.torrent.total_length_in_bytes().unwrap();
+        let piece_length = self.torrent.piece_length_in_bytes().unwrap();
+
+        let block_size = 16 * 1024;
+        let total_blocks = torrent::div_ceil(total_length, block_size);
+        let blocks_per_piece = piece_length / block_size;
+
+        let filename = Path::new("./julio.jpg");
+        let file_on_disk =
+            BlockReaderWriter::new(&filename, piece_length, total_length as usize).unwrap();
+
+        for block in 0..total_blocks {
+            let bytes_to_read = 13
+                + if block == total_blocks - 1 {
+                    total_length % block_size
+                } else {
+                    block_size
+                } as usize;
+
+            let piece_index = block / blocks_per_piece;
+            let block_offset = (block % blocks_per_piece) * block_size;
+
+            let request = Request::new(piece_index, block_offset, bytes_to_read as u32 - 13);
+            tcp_session.send(request).unwrap();
+
+            std::thread::sleep(std::time::Duration::from_millis(15));
+            let mut buffer = vec![0; bytes_to_read];
+
+            tcp_session.receive(&mut buffer).unwrap();
+            let (piece, _) = Piece::from_bytes(&buffer).unwrap();
+
+            file_on_disk
+                .write(piece_index, block_offset, piece.data())
+                .unwrap();
+        }
     }
 
     pub fn interested_and_unchoked(&mut self) -> Result<(), Error> {
-        println!("I am in the interested and unchoked state");
-        // request ->
-        // <- piece
-        // have piece ->
-        // // not interested
-        Ok(())
+        unimplemented!()
     }
 
     pub fn not_interested_and_unchoked() -> Result<(), Error> {
-        println!("I am in the not interested and unchoked state");
-        Ok(())
+        unimplemented!()
     }
 
     pub fn not_interesting_and_choking() -> Result<(), Error> {
-        println!("I am in the not interesting and choking state");
-        Ok(())
+        unimplemented!()
     }
 
     pub fn interesting_and_choking() -> Result<(), Error> {
-        println!("I am in the interesting and choking state");
-        Ok(())
+        unimplemented!()
     }
 
     pub fn interesting_and_unchoking() -> Result<(), Error> {
-        println!("I am in the interesting and unchoking state");
-        Ok(())
+        unimplemented!()
     }
 
     pub fn not_interesting_and_unchoking() -> Result<(), Error> {
-        println!("I am in the not interesting and unchoking state");
+        unimplemented!()
+    }
+
+    pub fn done(&self) -> Result<(), Error> {
         Ok(())
     }
 
     pub fn state_transition(&mut self) {
-        println!("from {:?} to {:?}", self.last_state, self.state);
+        println!("From state {:?} to {:?}", self.last_state, self.state);
         self.last_state = self.state;
 
         match self.state {
@@ -295,8 +298,21 @@ impl BitTorrentStateMachine {
             PeerToWireState::NotInterestedAndChoked => self.not_interested_and_choked(),
             PeerToWireState::InterestedAndChoked => self.interested_and_choked(),
             PeerToWireState::InterestedAndUnchoked => self.interested_and_unchoked(),
+            PeerToWireState::Done => self.done(),
             _ => unimplemented!(),
         }
         .unwrap();
+    }
+
+    fn tcp_session(&self) -> Result<&TCPSession, Error> {
+        self.tcp_session
+            .as_ref()
+            .ok_or(Error::TcpSessionDoesNotExist)
+    }
+
+    fn tracker_response(&self) -> Result<&TrackerResponse, Error> {
+        self.tracker_response
+            .as_ref()
+            .ok_or(Error::TrackerConnectionNotPossible)
     }
 }

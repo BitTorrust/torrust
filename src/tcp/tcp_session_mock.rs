@@ -22,7 +22,7 @@ use {
 /// the changes to the real TCPSession structure are not finished.
 pub struct TCPSessionMock {
     peer: Peer,
-    steam: TcpStream,
+    stream: TcpStream,
 }
 
 impl TCPSessionMock {
@@ -31,17 +31,17 @@ impl TCPSessionMock {
             TcpStream::connect(peer.socket_address()).map_err(|_| Error::FailedToConnectToPeer)?;
         Ok(Self {
             peer,
-            steam: stream,
+            stream: stream,
         })
     }
 
-    fn steam(&self) -> &TcpStream {
-        &self.steam
+    fn stream(&self) -> &TcpStream {
+        &self.stream
     }
 
     /// Returns the number of bytes sent
     pub fn send(&self, bittorrent_message: impl IntoBytes) -> Result<usize, io::Error> {
-        self.steam().write(&(bittorrent_message.into_bytes()))
+        self.stream().write(&(bittorrent_message.into_bytes()))
     }
 
     /// Write the received bytes in the buffer

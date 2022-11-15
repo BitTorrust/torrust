@@ -3,7 +3,9 @@ use crate::{
     error::Error,
     file_management::BlockReaderWriter,
     http::{Event, TrackerRequest, TrackerResponse},
-    pwp::{Bitfield, FromBytes, Handshake, Interested, Piece, Request, Unchoke},
+    pwp::{
+        Bitfield, FromBytes, Handshake, Have, Interested, NotInterested, Piece, Request, Unchoke,
+    },
     tcp::TCPSession,
     torrent,
     torrent::Torrent,
@@ -254,7 +256,7 @@ impl BitTorrentStateMachine {
             let request = Request::new(piece_index, block_offset, bytes_to_read as u32 - 13);
             tcp_session.send(request).unwrap();
 
-            std::thread::sleep(std::time::Duration::from_millis(15));
+            std::thread::sleep(std::time::Duration::from_millis(20));
             let mut buffer = vec![0; bytes_to_read];
 
             tcp_session.receive(&mut buffer).unwrap();
@@ -263,7 +265,15 @@ impl BitTorrentStateMachine {
             file_on_disk
                 .write(piece_index, block_offset, piece.data())
                 .unwrap();
+
+            if block_offset == block_size * (blocks_per_piece - 1) {
+                let have = Have::new(piece_index);
+                tcp_session.send(have).unwrap();
+            }
         }
+
+        let not_interested = NotInterested::new();
+        tcp_session.send(not_interested).unwrap();
     }
 
     pub fn interested_and_unchoked(&mut self) -> Result<(), Error> {

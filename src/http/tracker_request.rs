@@ -1,6 +1,6 @@
-use crate::pwp_communication::TrackerAddress;
 use crate::{
     http::{Event, TrackerResponse},
+    pwp_communication::TrackerAddress,
     torrent::Torrent,
     Error,
 };

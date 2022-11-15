@@ -58,7 +58,7 @@ pub struct BitTorrentStateMachine {
 }
 
 impl BitTorrentStateMachine {
-    pub fn run(torrent: Torrent, working_directory: &PathBuf, client_id: [u8; 20]) {
+    pub fn run(torrent: Torrent, working_directory: &PathBuf) {
         let mut state_machine = BitTorrentStateMachine::new(torrent, working_directory);
 
         loop {

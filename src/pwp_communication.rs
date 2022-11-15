@@ -19,8 +19,8 @@ use std::{
     time::Duration,
 };
 
-mod tracker;
-pub use tracker::TrackerAddress;
+mod tracker_address;
+pub use tracker_address::TrackerAddress;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum PeerToWireState {

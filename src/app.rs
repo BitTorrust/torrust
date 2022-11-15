@@ -11,17 +11,9 @@ impl App {
     pub fn run() -> Result<(), Error> {
         let args = Args::parse();
         let torrent = Self::parse_torrent(args.torrent_file())?;
-        let bittorrent_communication = BitTorrentStateMachine::run(torrent);
+        let directory = args.working_directory();
+        let bittorrent_communication = BitTorrentStateMachine::run(torrent, directory);
 
-        // let p2w_communication = BitTorrentStateMachine::new();
-        // p2w_communication.state_transition();
-
-        // P2W communication
-        // let tracker_request = Self::build_tracker_request(&torrent);
-        // let tracker_address = Self::tracker_address(&torrent)?;
-        // let response = Self::send_request(tracker_request, tracker_address)?;
-
-        // println!("{:?}", response);
         Ok(())
     }
 

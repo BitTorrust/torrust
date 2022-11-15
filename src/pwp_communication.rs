@@ -11,7 +11,11 @@ use crate::{
 
 use bit_vec::BitVec;
 use reqwest::Url;
-use std::{path::Path, thread, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    thread,
+    time::Duration,
+};
 
 mod tracker;
 pub use tracker::TrackerAddress;
@@ -48,6 +52,7 @@ pub struct BitTorrentStateMachine {
     torrent: Torrent,
     tracker_response: Option<TrackerResponse>,
     peer_bitfield: Option<Bitfield>,
+    working_directory: PathBuf,
 }
 
 impl BitTorrentStateMachine {
@@ -56,8 +61,8 @@ impl BitTorrentStateMachine {
         0xAA, 0xAA, 0xAA, 0xAA, 0xAD,
     ];
 
-    pub fn run(torrent: Torrent) {
-        let mut state_machine = BitTorrentStateMachine::new(torrent);
+    pub fn run(torrent: Torrent, working_directory: &PathBuf) {
+        let mut state_machine = BitTorrentStateMachine::new(torrent, working_directory);
 
         loop {
             if state_machine.state == PeerToWireState::Done {
@@ -73,7 +78,7 @@ impl BitTorrentStateMachine {
         }
     }
 
-    fn new(torrent: Torrent) -> Self {
+    fn new(torrent: Torrent, working_directory: &PathBuf) -> Self {
         BitTorrentStateMachine {
             state: PeerToWireState::SendTrackerRequest,
             tcp_session: None,
@@ -81,6 +86,7 @@ impl BitTorrentStateMachine {
             torrent,
             tracker_response: None,
             peer_bitfield: None,
+            working_directory: working_directory.to_owned(),
         }
     }
 
@@ -229,7 +235,8 @@ impl BitTorrentStateMachine {
         let total_blocks = torrent::div_ceil(total_length, block_size);
         let blocks_per_piece = piece_length / block_size;
 
-        let filename = Path::new("./julio.jpg");
+        let filename = self.filepath();
+        println!("Saving file to {:?}", filename);
         let file_on_disk =
             BlockReaderWriter::new(&filename, piece_length, total_length as usize).unwrap();
 
@@ -314,5 +321,11 @@ impl BitTorrentStateMachine {
         self.tracker_response
             .as_ref()
             .ok_or(Error::TrackerConnectionNotPossible)
+    }
+
+    fn filepath(&self) -> PathBuf {
+        let complete_path = self.working_directory.join(self.torrent.name().unwrap());
+
+        complete_path
     }
 }

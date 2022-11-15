@@ -17,6 +17,11 @@ use std::{path::PathBuf, thread, time::Duration};
 mod tracker_address;
 pub use tracker_address::TrackerAddress;
 
+const PEER_ID: [u8; 20] = [
+    0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+    0xAA, 0xAA, 0xAA, 0xAD,
+];
+
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum PeerToWireState {
     Idle,
@@ -50,12 +55,11 @@ pub struct BitTorrentStateMachine {
     tracker_response: Option<TrackerResponse>,
     peer_bitfield: Option<Bitfield>,
     working_directory: PathBuf,
-    client_id: [u8; 20],
 }
 
 impl BitTorrentStateMachine {
     pub fn run(torrent: Torrent, working_directory: &PathBuf, client_id: [u8; 20]) {
-        let mut state_machine = BitTorrentStateMachine::new(torrent, working_directory, client_id);
+        let mut state_machine = BitTorrentStateMachine::new(torrent, working_directory);
 
         loop {
             if state_machine.state == PeerToWireState::Done {
@@ -71,7 +75,7 @@ impl BitTorrentStateMachine {
         }
     }
 
-    fn new(torrent: Torrent, working_directory: &PathBuf, client_id: [u8; 20]) -> Self {
+    fn new(torrent: Torrent, working_directory: &PathBuf) -> Self {
         BitTorrentStateMachine {
             state: PeerToWireState::SendTrackerRequest,
             tcp_session: None,
@@ -80,7 +84,6 @@ impl BitTorrentStateMachine {
             tracker_response: None,
             peer_bitfield: None,
             working_directory: working_directory.to_owned(),
-            client_id,
         }
     }
 
@@ -94,7 +97,7 @@ impl BitTorrentStateMachine {
     }
 
     pub fn send_tracker_request(&mut self) -> Result<(), Error> {
-        let tracker_request = TrackerRequest::from_torrent(&self.torrent, self.client_id);
+        let tracker_request = TrackerRequest::from_torrent(&self.torrent, PEER_ID);
         let tracker_address = Self::tracker_address(&self.torrent)?;
         let response = TrackerRequest::send_request(tracker_request, tracker_address)?;
 
@@ -109,7 +112,7 @@ impl BitTorrentStateMachine {
 
         let tracker_response = self.tracker_response()?;
         let info_hash = self.torrent.info_hash().unwrap();
-        let handshake = Handshake::new(info_hash, self.client_id);
+        let handshake = Handshake::new(info_hash, PEER_ID);
 
         // TODO: talk to the right peers
         let peer = tracker_response.peers().unwrap().last().unwrap();

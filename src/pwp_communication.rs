@@ -40,6 +40,8 @@ pub enum PeerToWireState {
     Done,
 }
 
+// Client : my application
+// Peer : the client I am communicating with
 pub struct BitTorrentStateMachine {
     last_state: PeerToWireState,
     tcp_session: Option<TCPSession>,
@@ -48,16 +50,12 @@ pub struct BitTorrentStateMachine {
     tracker_response: Option<TrackerResponse>,
     peer_bitfield: Option<Bitfield>,
     working_directory: PathBuf,
+    client_id: [u8; 20],
 }
 
 impl BitTorrentStateMachine {
-    const PEER_ID: [u8; 20] = [
-        0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
-        0xAA, 0xAA, 0xAA, 0xAA, 0xAD,
-    ];
-
-    pub fn run(torrent: Torrent, working_directory: &PathBuf) {
-        let mut state_machine = BitTorrentStateMachine::new(torrent, working_directory);
+    pub fn run(torrent: Torrent, working_directory: &PathBuf, client_id: [u8; 20]) {
+        let mut state_machine = BitTorrentStateMachine::new(torrent, working_directory, client_id);
 
         loop {
             if state_machine.state == PeerToWireState::Done {
@@ -73,7 +71,7 @@ impl BitTorrentStateMachine {
         }
     }
 
-    fn new(torrent: Torrent, working_directory: &PathBuf) -> Self {
+    fn new(torrent: Torrent, working_directory: &PathBuf, client_id: [u8; 20]) -> Self {
         BitTorrentStateMachine {
             state: PeerToWireState::SendTrackerRequest,
             tcp_session: None,
@@ -82,6 +80,7 @@ impl BitTorrentStateMachine {
             tracker_response: None,
             peer_bitfield: None,
             working_directory: working_directory.to_owned(),
+            client_id,
         }
     }
 
@@ -94,42 +93,10 @@ impl BitTorrentStateMachine {
         Ok(tracker_address)
     }
 
-    fn build_tracker_request(torrent: &Torrent) -> TrackerRequest {
-        let info_hash = torrent.info_hash().unwrap();
-        let left_to_download = torrent.total_length_in_bytes().unwrap();
-        let tracker_request = TrackerRequest::new(
-            info_hash,
-            Self::PEER_ID,
-            6882,
-            0,
-            0,
-            left_to_download as usize,
-            true,
-            Some(Event::Started),
-        );
-
-        tracker_request
-    }
-
-    fn send_request(
-        tracker_request: TrackerRequest,
-        tracker: TrackerAddress,
-    ) -> Result<TrackerResponse, Error> {
-        let url = tracker_request.into_url(tracker.host(), tracker.port())?;
-
-        let mut response =
-            reqwest::blocking::get(url).map_err(|_| Error::TrackerConnectionNotPossible)?;
-        let mut bencode = Vec::new();
-        response.copy_to(&mut bencode).unwrap();
-        let parsed_response = TrackerResponse::from_bencode(&bencode);
-
-        parsed_response
-    }
-
     pub fn send_tracker_request(&mut self) -> Result<(), Error> {
-        let tracker_request = Self::build_tracker_request(&self.torrent);
+        let tracker_request = TrackerRequest::from_torrent(&self.torrent, self.client_id);
         let tracker_address = Self::tracker_address(&self.torrent)?;
-        let response = Self::send_request(tracker_request, tracker_address)?;
+        let response = TrackerRequest::send_request(tracker_request, tracker_address)?;
 
         self.tracker_response = Some(response);
         self.state = PeerToWireState::TrackerRequestSent;
@@ -142,7 +109,7 @@ impl BitTorrentStateMachine {
 
         let tracker_response = self.tracker_response()?;
         let info_hash = self.torrent.info_hash().unwrap();
-        let handshake = Handshake::new(info_hash, Self::PEER_ID);
+        let handshake = Handshake::new(info_hash, self.client_id);
 
         // TODO: talk to the right peers
         let peer = tracker_response.peers().unwrap().last().unwrap();

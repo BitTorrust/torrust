@@ -1,4 +1,11 @@
-use {crate::http::Event, crate::Error, reqwest::Url};
+use crate::pwp_communication::TrackerAddress;
+use crate::{
+    http::{Event, TrackerResponse},
+    torrent::Torrent,
+    Error,
+};
+
+use reqwest::Url;
 
 #[derive(Debug)]
 pub struct TrackerRequest {
@@ -35,6 +42,37 @@ impl TrackerRequest {
         }
     }
 
+    pub fn send_request(
+        tracker_request: TrackerRequest,
+        tracker: TrackerAddress,
+    ) -> Result<TrackerResponse, Error> {
+        let url = tracker_request.into_url(tracker.host(), tracker.port())?;
+
+        let mut response =
+            reqwest::blocking::get(url).map_err(|_| Error::TrackerConnectionNotPossible)?;
+        let mut bencode = Vec::new();
+        response.copy_to(&mut bencode).unwrap();
+        let parsed_response = TrackerResponse::from_bencode(&bencode);
+
+        parsed_response
+    }
+
+    pub fn from_torrent(torrent: &Torrent, peer_id: [u8; 20]) -> TrackerRequest {
+        let info_hash = torrent.info_hash().unwrap();
+        let left_to_download = torrent.total_length_in_bytes().unwrap();
+        let tracker_request = TrackerRequest::new(
+            info_hash,
+            peer_id,
+            6882,
+            0,
+            0,
+            left_to_download as usize,
+            true,
+            Some(Event::Started),
+        );
+
+        tracker_request
+    }
     pub fn into_url(self, host: &str, port: u16) -> Result<Url, Error> {
         let mut url = Url::parse(&format!(
             "http://{}:{}/announce?info_hash={}&peer_id={}",

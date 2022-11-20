@@ -8,7 +8,7 @@ pub mod user_case {
     use std::{
         fs::{self, File},
         io::{self, Read},
-        net::{Ipv4Addr, SocketAddrV4},
+        net::{IpAddr, Ipv4Addr, SocketAddr},
         path::Path,
         thread::sleep,
         time::Duration,
@@ -83,9 +83,11 @@ pub mod user_case {
         sleep(Duration::from_secs(5));
 
         // TCP connection
-        let seeder_peer =
-            Peer::from_socket_address(SocketAddrV4::new(SEEDER_IP_ADDRESS, seeder_port));
-        let mut tcp_session = match TCPSessionMock::connect(seeder_peer) {
+        let seeder_peer = Peer::from_socket_address(SocketAddr::new(
+            IpAddr::V4(SEEDER_IP_ADDRESS),
+            SEEDER_TCP_DOWNLOAD_PORT,
+        ));
+        let tcp_session = match TCPSession::connect(seeder_peer) {
             Ok(session) => session,
             Err(_) => {
                 tracker_process_child.kill().unwrap();

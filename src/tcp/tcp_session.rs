@@ -1,7 +1,7 @@
 use crate::http::Peer;
 use crate::pwp::IntoBytes;
 use crate::Error;
-use std::io::{self, prelude::*};
+use std::io::{self, prelude::*, BufReader};
 use std::net::TcpStream;
 
 pub struct TCPSession {
@@ -30,7 +30,10 @@ impl TCPSession {
 
     /// Write the received bytes in the buffer
     /// Returns the number of bytes received
-    pub fn receive(&self, buffer: &mut [u8]) -> Result<usize, io::Error> {
-        self.steam().read(buffer)
+    pub fn receive(&self, buffer: &mut [u8]) -> io::Result<usize> {
+        let mut response = BufReader::new(self.steam());
+        response.read(buffer)
+
+        //self.steam().read(buffer)
     }
 }

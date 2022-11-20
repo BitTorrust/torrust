@@ -88,8 +88,7 @@ impl BitTorrentStateMachine {
     }
 
     fn tracker_address(torrent: &Torrent) -> Result<TrackerAddress, Error> {
-        let tracker_url =
-            Url::parse(torrent.announce().unwrap()).map_err(|_| Error::InvalidURLAddress)?;
+        let tracker_url = Url::parse(torrent.announce()).map_err(|_| Error::InvalidURLAddress)?;
 
         let tracker_address = TrackerAddress::from_url(tracker_url)?;
 
@@ -111,7 +110,7 @@ impl BitTorrentStateMachine {
         println!("{:?}", self.tracker_response);
 
         let tracker_response = self.tracker_response()?;
-        let info_hash = self.torrent.info_hash().unwrap();
+        let info_hash = self.torrent.info_hash();
         let handshake = Handshake::new(info_hash, PEER_ID);
 
         // TODO: talk to the right peers
@@ -148,8 +147,7 @@ impl BitTorrentStateMachine {
     pub fn not_interested_and_choked(&mut self) -> Result<(), Error> {
         let received_bitfield = {
             let tcp_session = self.tcp_session()?;
-            let bitfield_length =
-                5 + torrent::div_ceil(self.torrent.number_of_pieces().unwrap(), 8);
+            let bitfield_length = 5 + torrent::div_ceil(self.torrent.number_of_pieces(), 8);
 
             let mut buffer = vec![0; bitfield_length as usize];
             tcp_session.receive(&mut buffer).unwrap();
@@ -158,7 +156,7 @@ impl BitTorrentStateMachine {
             println!("{:?}", received_bitfield);
 
             let bitfield = Bitfield::new(BitVec::from_elem(
-                self.torrent.number_of_pieces().unwrap() as usize,
+                self.torrent.number_of_pieces() as usize,
                 false,
             ));
             tcp_session.send(bitfield).unwrap();
@@ -241,8 +239,8 @@ impl BitTorrentStateMachine {
     fn download_pieces(&self, tcp_session: &TCPSession) {
         println!("Downloading pieces");
 
-        let total_length = self.torrent.total_length_in_bytes().unwrap();
-        let piece_length = self.torrent.piece_length_in_bytes().unwrap();
+        let total_length = self.torrent.total_length_in_bytes();
+        let piece_length = self.torrent.piece_length_in_bytes();
 
         let block_size = 16 * 1024;
         let total_blocks = torrent::div_ceil(total_length, block_size);
@@ -300,7 +298,7 @@ impl BitTorrentStateMachine {
     }
 
     fn filepath(&self) -> PathBuf {
-        let complete_path = self.working_directory.join(self.torrent.name().unwrap());
+        let complete_path = self.working_directory.join(self.torrent.name());
 
         complete_path
     }

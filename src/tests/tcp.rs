@@ -382,7 +382,7 @@ pub mod user_case {
         let _ = fs::remove_file(seeder_aria_file);
     }
 
-    #[ignore = "CI doesn't have a local network and aria2c doesn't reply with unchoke"]
+    #[ignore = "CI doesn't have a local network"]
     #[test]
     pub fn tcp_session_receive_unchoke() {
         // Init local network
@@ -475,7 +475,8 @@ pub mod user_case {
         };
 
         // Leecher --[Bitfield]-> Seeder
-        let leacher_bitfield = BitVec::from_bytes(&[0x0]);
+        let empty_bitfield: [u8; 19] = [0; 19];
+        let leacher_bitfield = BitVec::from_bytes(&empty_bitfield);
         let bitfield = Bitfield::new(leacher_bitfield);
         let expected_bitfield_message_length = bitfield.message_length() + 4;
         assert_eq!(

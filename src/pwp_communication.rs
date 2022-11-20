@@ -3,7 +3,8 @@ use crate::{
     file_management::BlockReaderWriter,
     http::{Event, TrackerRequest, TrackerResponse},
     pwp::{
-        Bitfield, FromBytes, Handshake, Have, Interested, NotInterested, Piece, Request, Unchoke,
+        from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, MessageType, NotInterested,
+        Piece, Request, Unchoke,
     },
     tcp::TCPSession,
     torrent,
@@ -12,7 +13,7 @@ use crate::{
 
 use bit_vec::BitVec;
 use reqwest::Url;
-use std::{path::PathBuf, thread, time::Duration};
+use std::{net::TcpListener, path::PathBuf, thread, time::Duration};
 
 mod tracker_address;
 pub use tracker_address::TrackerAddress;
@@ -44,6 +45,11 @@ pub enum PeerToWireState {
 
     Done,
 }
+#[derive(PartialEq)]
+pub enum ClientMode {
+    Leecher,
+    Seeder,
+}
 
 // Client : my application
 // Peer : the client I am communicating with
@@ -55,6 +61,7 @@ pub struct BitTorrentStateMachine {
     tracker_response: Option<TrackerResponse>,
     peer_bitfield: Option<Bitfield>,
     working_directory: PathBuf,
+    listener: Option<TcpListener>,
 }
 
 impl BitTorrentStateMachine {
@@ -84,6 +91,7 @@ impl BitTorrentStateMachine {
             tracker_response: None,
             peer_bitfield: None,
             working_directory: working_directory.to_owned(),
+            listener: None,
         }
     }
 
@@ -112,16 +120,24 @@ impl BitTorrentStateMachine {
         let tracker_response = self.tracker_response()?;
         let info_hash = self.torrent.info_hash();
         let handshake = Handshake::new(info_hash, PEER_ID);
-
-        // TODO: talk to the right peers
         let peer = tracker_response.peers().unwrap().last().unwrap();
-        let tcp_session = TCPSession::connect(peer.clone()).unwrap();
-        self.tcp_session.replace(tcp_session);
 
-        let tcp_session = self.tcp_session()?;
-        tcp_session.send(handshake).unwrap();
+        // TODO: Remove after sprint seeder 100% & leecher 0%
+        if self.client_mode() == ClientMode::Leecher {
+            // TODO: talk to the right peers
+            let tcp_session = TCPSession::connect(peer.clone()).unwrap();
+            self.tcp_session.replace(tcp_session);
 
-        self.state = PeerToWireState::HandshakeSent;
+            let tcp_session = self.tcp_session()?;
+            tcp_session.send(handshake).unwrap();
+
+            self.state = PeerToWireState::HandshakeSent;
+        } else {
+            let listener = TCPSession::listen()?;
+            self.listener.replace(listener);
+            self.state = PeerToWireState::WaitHandshake;
+        }
+
         Ok(())
     }
 
@@ -140,8 +156,35 @@ impl BitTorrentStateMachine {
         Ok(())
     }
 
-    pub fn wait_handshake() -> Result<(), Error> {
-        unimplemented!()
+    pub fn wait_handshake(&mut self) -> Result<(), Error> {
+        let mut buffer = vec![0; 68];
+        let info_hash = self.torrent.info_hash().unwrap();
+
+        let listener = self.listener()?;
+        let tcp_session = TCPSession::accept(
+            listener
+                .try_clone()
+                .map_err(|_| Error::FailedToCloneSocketHandle)?,
+        )?;
+        self.tcp_session.replace(tcp_session);
+        let tcp_session = self.tcp_session()?;
+
+        tcp_session.receive(&mut buffer).unwrap();
+        let (handshake_request, _) = Handshake::from_bytes(&buffer).unwrap();
+        println!("Handshake request => {:?}", handshake_request);
+
+        let handshake = Handshake::new(info_hash, PEER_ID);
+        tcp_session.send(handshake).unwrap();
+
+        let bitfield = Bitfield::new(BitVec::from_elem(
+            self.torrent.number_of_pieces().unwrap() as usize,
+            true,
+        ));
+        tcp_session.send(bitfield).unwrap();
+
+        self.state = PeerToWireState::NotInterestingAndChoking;
+
+        Ok(())
     }
 
     pub fn not_interested_and_choked(&mut self) -> Result<(), Error> {
@@ -199,16 +242,91 @@ impl BitTorrentStateMachine {
         unimplemented!()
     }
 
-    pub fn not_interesting_and_choking() -> Result<(), Error> {
-        unimplemented!()
+    pub fn not_interesting_and_choking(&mut self) -> Result<(), Error> {
+        let (received_bitfield, interested_message) = {
+            let tcp_session = self.tcp_session()?;
+            let bitfield_length =
+                5 + torrent::div_ceil(self.torrent.number_of_pieces().unwrap(), 8);
+            let interested_length = MessageType::Interested.base_length()
+                + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES;
+
+            let mut buffer = vec![0; bitfield_length as usize];
+            tcp_session.receive(&mut buffer).unwrap();
+
+            let (received_bitfield, _) = Bitfield::from_bytes(&buffer).unwrap();
+            println!("{:?}", received_bitfield);
+
+            buffer = vec![0; interested_length as usize];
+            tcp_session.receive(&mut buffer).unwrap();
+            let (interested_message, _) = Interested::from_bytes(&buffer).unwrap();
+            println!("{:?}", interested_message);
+
+            (received_bitfield, interested_message)
+        };
+
+        self.peer_bitfield.replace(received_bitfield);
+        self.state = PeerToWireState::InterestingAndChoking;
+
+        Ok(())
     }
 
-    pub fn interesting_and_choking() -> Result<(), Error> {
-        unimplemented!()
+    // TODO: decide when to choke or unchoke a peer
+    pub fn interesting_and_choking(&mut self) -> Result<(), Error> {
+        let tcp_session = self.tcp_session()?;
+        let unchoke_message = Unchoke::new();
+
+        tcp_session.send(unchoke_message).unwrap();
+        self.state = PeerToWireState::InterestingAndUnchoking;
+        Ok(())
     }
 
-    pub fn interesting_and_unchoking() -> Result<(), Error> {
-        unimplemented!()
+    // TODO: Use receive() method described on tcp_session_mock.rs
+    pub fn interesting_and_unchoking(&mut self) -> Result<(), Error> {
+        let tcp_session = self.tcp_session()?;
+
+        // This state requires the tcp_session api described on
+        // tcp_session_mock.rs
+        //
+        // let received_message = tcp_session.receive()?;
+        // match received_message {
+        //     Some(Request) => {
+        //         self.upload_pieces(tcp_session, received_message: Message);
+        //         self.state = PeerToWireState::InterestingAndUnchoking;
+        //     }
+        //     Some(Have) => self.state = PeerToWireState::InterestingAndUnchoking,
+        //     Some(NotInterested) => self.state = PeerToWireState::Done,
+
+        //     _ => unimplemented!(),
+        // }
+
+        let total_length = self.torrent.total_length_in_bytes().unwrap();
+        let block_length = 16 * 1024;
+
+        let number_of_requests = torrent::div_ceil(total_length, block_length);
+
+        for _request in 0..number_of_requests {
+            let request_message_length = MessageType::Request.base_length()
+                + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES;
+            let mut buffer = vec![0; request_message_length as usize];
+
+            tcp_session.receive(&mut buffer).unwrap();
+            let (request, _) = Request::from_bytes(&buffer).unwrap();
+            println!("{:?}", request);
+
+            self.upload_pieces(tcp_session, request);
+        }
+
+        let not_interested_message_length = MessageType::Interested.base_length()
+            + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES;
+
+        let mut buffer = vec![0; not_interested_message_length as usize];
+
+        tcp_session.receive(&mut buffer).unwrap();
+        let (not_interested, _) = NotInterested::from_bytes(&buffer).unwrap();
+        println!("{:?}", not_interested);
+        self.state = PeerToWireState::Done;
+
+        Ok(())
     }
 
     pub fn not_interesting_and_unchoking() -> Result<(), Error> {
@@ -226,14 +344,40 @@ impl BitTorrentStateMachine {
         match self.state {
             PeerToWireState::SendTrackerRequest => self.send_tracker_request(),
             PeerToWireState::TrackerRequestSent => self.tracker_request_sent(),
+            // Leecher states
             PeerToWireState::HandshakeSent => self.handshake_sent(),
             PeerToWireState::NotInterestedAndChoked => self.not_interested_and_choked(),
             PeerToWireState::InterestedAndChoked => self.interested_and_choked(),
             PeerToWireState::InterestedAndUnchoked => self.interested_and_unchoked(),
+            // Seeder states
+            PeerToWireState::WaitHandshake => self.wait_handshake(),
+            PeerToWireState::NotInterestingAndChoking => self.not_interesting_and_choking(),
+            PeerToWireState::InterestingAndChoking => self.interesting_and_choking(),
+            PeerToWireState::InterestingAndUnchoking => self.interesting_and_unchoking(),
+
             PeerToWireState::Done => self.done(),
             _ => unimplemented!(),
         }
         .unwrap();
+    }
+
+    fn upload_pieces(&self, tcp_session: &TCPSession, request: Request) {
+        println!("Uploading pieces");
+
+        let total_length = self.torrent.total_length_in_bytes().unwrap();
+        let piece_length = self.torrent.piece_length_in_bytes().unwrap();
+
+        let filename = &self.working_directory;
+        println!("Uploading from {:?}", filename);
+        let file_on_disk =
+            BlockReaderWriter::new(filename, piece_length, total_length as usize).unwrap();
+
+        let piece_index = request.piece_index();
+        let block_offset = request.begin_offset();
+        let data = file_on_disk.read(piece_index, block_offset).unwrap();
+
+        let piece = Piece::new(piece_index, block_offset, data);
+        tcp_session.send(piece).unwrap();
     }
 
     fn download_pieces(&self, tcp_session: &TCPSession) {
@@ -291,6 +435,10 @@ impl BitTorrentStateMachine {
             .ok_or(Error::TcpSessionDoesNotExist)
     }
 
+    fn listener(&self) -> Result<&TcpListener, Error> {
+        self.listener.as_ref().ok_or(Error::TcpListenerDoesNotExist)
+    }
+
     fn tracker_response(&self) -> Result<&TrackerResponse, Error> {
         self.tracker_response
             .as_ref()
@@ -301,5 +449,19 @@ impl BitTorrentStateMachine {
         let complete_path = self.working_directory.join(self.torrent.name());
 
         complete_path
+    }
+
+    // TODO: erase after sprint-1
+    // Replacement: A piece check method
+    fn client_mode(&self) -> ClientMode {
+        let client_mode;
+
+        if self.working_directory.is_file() {
+            client_mode = ClientMode::Seeder;
+        } else {
+            client_mode = ClientMode::Leecher;
+        }
+
+        client_mode
     }
 }

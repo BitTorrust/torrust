@@ -21,10 +21,14 @@ pub struct Handshake {
 }
 
 impl Handshake {
-    const HANDSHAKE_MIN_MESSAGE_SIZE: usize = 49; // without pstr taken into account
+    pub const HANDSHAKE_MIN_MESSAGE_SIZE: usize = 49; // without pstr taken into account
+    pub const BITTORRENT_VERSION_1_PROTOCOL_NAME: &str = "BitTorrent protocol";
+    pub const BITTORRENT_VERSION_1_PROTOCOL_NAME_LENGTH: u8 = 19;
+    pub const HANDSHAKE_VERSION_1_MESSAGE_LENGTH: usize = Handshake::HANDSHAKE_MIN_MESSAGE_SIZE
+        + Handshake::BITTORRENT_VERSION_1_PROTOCOL_NAME_LENGTH as usize;
 
     pub fn new(info_hash: [u8; 20], peer_id: [u8; 20]) -> Self {
-        let pstr = "BitTorrent protocol".to_string();
+        let pstr = Handshake::BITTORRENT_VERSION_1_PROTOCOL_NAME.to_string();
         let pstrlen: u8 = pstr.len() as u8;
         let reserved = [0; 8];
 

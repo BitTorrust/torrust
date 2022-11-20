@@ -14,7 +14,8 @@ pub mod user_case {
 
     use crate::{
         http::Peer,
-        pwp::{FromBytes, Interested, MandatoryBitTorrentMessageFields},
+        pwp::{FromBytes, Interested, MandatoryBitTorrentMessageFields, Message},
+        tcp::TCPSessionMock,
     };
     use crate::{pwp::Bitfield, tcp::TCPSession};
     use crate::{pwp::Handshake, Error, Torrent};
@@ -47,7 +48,7 @@ pub mod user_case {
             .spawn()
     }
 
-    fn run_seeder(torrent_to_seed_filename: &str) -> io::Result<Child> {
+    fn run_seeder(torrent_to_seed_filename: &str, port_to_seed: u16) -> io::Result<Child> {
         Command::new("aria2c")
             .arg(format!(
                 "{}/{}",
@@ -56,10 +57,11 @@ pub mod user_case {
             .arg("-V")
             .arg("-d")
             .arg(UPLOAD_FILES_FOLDER.to_string())
-            .arg(format!("--listen-port={}", SEEDER_TCP_DOWNLOAD_PORT))
+            .arg(format!("--listen-port={}", port_to_seed))
             .spawn()
     }
 
+    #[ignore = "CI doesn't have a local network"]
     #[test]
     pub fn leech() {
         // Init local network
@@ -68,15 +70,14 @@ pub mod user_case {
         let mut tracker_process_child =
             run_tracker().expect("failed to execute tracker process child");
 
-        let mut seeder_process_child = run_seeder(&torrent_filename_to_upload)
+        let seeder_port = SEEDER_TCP_DOWNLOAD_PORT;
+        let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
             .expect("failed to execute seeder process child");
         sleep(Duration::from_secs(5));
 
         // TCP connection
-        let seeder_peer = Peer::from_socket_address(SocketAddrV4::new(
-            SEEDER_IP_ADDRESS,
-            SEEDER_TCP_DOWNLOAD_PORT,
-        ));
+        let seeder_peer =
+            Peer::from_socket_address(SocketAddrV4::new(SEEDER_IP_ADDRESS, seeder_port));
         let tcp_session = match TCPSession::connect(seeder_peer) {
             Ok(session) => session,
             Err(_) => {
@@ -188,6 +189,334 @@ pub mod user_case {
         //     tcp_session.send(interested).unwrap(),
         //     expected_interested_length_in_byte
         // );
+
+        // End of test
+        tracker_process_child.kill().unwrap();
+        seeder_process_child.kill().unwrap();
+
+        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_download_file);
+        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_aria_file);
+    }
+
+    #[ignore = "CI doesn't have a local network"]
+    #[test]
+    pub fn tcp_session_receive_handshake() {
+        // Init local network
+        let filename_to_upload = "venon.jpg";
+        let torrent_filename_to_upload = format!("{}.torrent", filename_to_upload);
+        let mut tracker_process_child =
+            run_tracker().expect("failed to execute tracker process child");
+
+        let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 1;
+        let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
+            .expect("failed to execute seeder process child");
+        sleep(Duration::from_secs(5));
+
+        // TCP connection
+        let seeder_peer =
+            Peer::from_socket_address(SocketAddrV4::new(SEEDER_IP_ADDRESS, seeder_port));
+        let mut tcp_session = match TCPSessionMock::connect(seeder_peer) {
+            Ok(session) => session,
+            Err(_) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("cannot connect to seeder");
+            }
+        };
+
+        // Leecher --[Handshake]-> Seeder
+        let filepath = format!("{}/{}", UPLOAD_FILES_FOLDER, torrent_filename_to_upload);
+        let filepath = Path::new(&filepath);
+        let mut file = File::open(filepath).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        let mut bencode_decoder = Decoder::new(&buffer);
+        let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
+        let torrent = maybe_torrent.unwrap();
+        let info_hash = torrent.info_hash().unwrap();
+
+        let handshake = Handshake::new(info_hash, PEER_ID);
+        let expected_handshake_length_in_byte = 68;
+        // Check all the handshake has been sent
+        assert_eq!(
+            tcp_session.send(handshake).unwrap(),
+            expected_handshake_length_in_byte
+        );
+
+        // Try to receive handshake
+        // Leecher <-[Handshake]-- Seeder
+        let received_hanshake_message = match tcp_session.receive() {
+            Ok(maybe_message) => match maybe_message {
+                Some(message) => message,
+                None => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    panic!("a handshake message was expected")
+                }
+            },
+            Err(error) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("{:?}", error);
+            }
+        };
+        println!("HANDSHAKE received: {:?}\n\n", received_hanshake_message);
+        if let Message::Handshake(received_handshake) = received_hanshake_message {
+            // Check the handshake corresponding to our torrent has been received
+            assert_eq!(received_handshake.info_hash(), info_hash);
+        };
+
+        // End of test
+        tracker_process_child.kill().unwrap();
+        seeder_process_child.kill().unwrap();
+
+        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_download_file);
+        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_aria_file);
+    }
+
+    #[ignore = "CI doesn't have a local network"]
+    #[test]
+    pub fn tcp_session_receive_bitfield() {
+        // Init local network
+        let filename_to_upload = "venon.jpg";
+        let torrent_filename_to_upload = format!("{}.torrent", filename_to_upload);
+        let mut tracker_process_child =
+            run_tracker().expect("failed to execute tracker process child");
+
+        let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 2;
+        let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
+            .expect("failed to execute seeder process child");
+        sleep(Duration::from_secs(5));
+
+        // TCP connection
+        let seeder_peer =
+            Peer::from_socket_address(SocketAddrV4::new(SEEDER_IP_ADDRESS, seeder_port));
+        let mut tcp_session = match TCPSessionMock::connect(seeder_peer) {
+            Ok(session) => session,
+            Err(_) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("cannot connect to seeder");
+            }
+        };
+
+        // Leecher --[Handshake]-> Seeder
+        let filepath = format!("{}/{}", UPLOAD_FILES_FOLDER, torrent_filename_to_upload);
+        let filepath = Path::new(&filepath);
+        let mut file = File::open(filepath).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        let mut bencode_decoder = Decoder::new(&buffer);
+        let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
+        let torrent = maybe_torrent.unwrap();
+        let info_hash = torrent.info_hash().unwrap();
+
+        let handshake = Handshake::new(info_hash, PEER_ID);
+        let expected_handshake_length_in_byte = 68;
+        // Check all the handshake has been sent
+        assert_eq!(
+            tcp_session.send(handshake).unwrap(),
+            expected_handshake_length_in_byte
+        );
+
+        // Try to receive handshake
+        // Leecher <-[Handshake]-- Seeder
+        let received_hanshake_message = match tcp_session.receive() {
+            Ok(maybe_message) => match maybe_message {
+                Some(message) => message,
+                None => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    panic!("a handshake message was expected")
+                }
+            },
+            Err(error) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("{:?}", error);
+            }
+        };
+        if let Message::Handshake(received_handshake) = received_hanshake_message {
+            // Check the handshake corresponding to our torrent has been received
+            assert_eq!(received_handshake.info_hash(), info_hash);
+        };
+
+        // Try to receive Bitfield
+        // Leecher <-[Bitfield]-- Seeder
+        let received_bitfield_message = match tcp_session.receive() {
+            Ok(maybe_message) => match maybe_message {
+                Some(message) => message,
+                None => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    panic!("a bitfield message was expected")
+                }
+            },
+            Err(error) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("{:?}", error);
+            }
+        };
+        println!("BITFIELD received: {:?}\n\n", received_bitfield_message);
+        if let Message::Bitfield(received_bitfield) = received_bitfield_message {
+            // Check we received the seeder bitfield full
+            let expected_received_bitfield = BitVec::from_bytes(&[
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0x80,
+            ]);
+            assert_eq!(*received_bitfield.bitfield(), expected_received_bitfield);
+        };
+
+        // End of test
+        tracker_process_child.kill().unwrap();
+        seeder_process_child.kill().unwrap();
+
+        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_download_file);
+        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
+        let _ = fs::remove_file(seeder_aria_file);
+    }
+
+    #[ignore = "CI doesn't have a local network and aria2c doesn't reply with unchoke"]
+    #[test]
+    pub fn tcp_session_receive_unchoke() {
+        // Init local network
+        let filename_to_upload = "venon.jpg";
+        let torrent_filename_to_upload = format!("{}.torrent", filename_to_upload);
+        let mut tracker_process_child =
+            run_tracker().expect("failed to execute tracker process child");
+
+        let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 3;
+        let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
+            .expect("failed to execute seeder process child");
+        sleep(Duration::from_secs(5));
+
+        // TCP connection
+        let seeder_peer =
+            Peer::from_socket_address(SocketAddrV4::new(SEEDER_IP_ADDRESS, seeder_port));
+        let mut tcp_session = match TCPSessionMock::connect(seeder_peer) {
+            Ok(session) => session,
+            Err(_) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("cannot connect to seeder");
+            }
+        };
+
+        // Leecher --[Handshake]-> Seeder
+        let filepath = format!("{}/{}", UPLOAD_FILES_FOLDER, torrent_filename_to_upload);
+        let filepath = Path::new(&filepath);
+        let mut file = File::open(filepath).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        let mut bencode_decoder = Decoder::new(&buffer);
+        let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
+        let torrent = maybe_torrent.unwrap();
+        let info_hash = torrent.info_hash().unwrap();
+
+        let handshake = Handshake::new(info_hash, PEER_ID);
+        let expected_handshake_length_in_byte = 68;
+        // Check all the handshake has been sent
+        assert_eq!(
+            tcp_session.send(handshake).unwrap(),
+            expected_handshake_length_in_byte
+        );
+
+        // Try to receive handshake
+        // Leecher <-[Handshake]-- Seeder
+        let received_hanshake_message = match tcp_session.receive() {
+            Ok(maybe_message) => match maybe_message {
+                Some(message) => message,
+                None => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    panic!("a handshake message was expected")
+                }
+            },
+            Err(error) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("{:?}", error);
+            }
+        };
+        if let Message::Handshake(received_handshake) = received_hanshake_message {
+            // Check the handshake corresponding to our torrent has been received
+            assert_eq!(received_handshake.info_hash(), info_hash);
+        };
+
+        // Leecher <-[Bitfield]-- Seeder
+        let received_bitfield_message = match tcp_session.receive() {
+            Ok(maybe_message) => match maybe_message {
+                Some(message) => message,
+                None => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    panic!("a bitfield message was expected")
+                }
+            },
+            Err(error) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("{:?}", error);
+            }
+        };
+        if let Message::Bitfield(received_bitfield) = received_bitfield_message {
+            // Check we received the seeder bitfield full
+            let expected_received_bitfield = BitVec::from_bytes(&[
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0x80,
+            ]);
+            assert_eq!(*received_bitfield.bitfield(), expected_received_bitfield);
+        };
+
+        // Leecher --[Bitfield]-> Seeder
+        let leacher_bitfield = BitVec::from_bytes(&[0x0]);
+        let bitfield = Bitfield::new(leacher_bitfield);
+        let expected_bitfield_message_length = bitfield.message_length() + 4;
+        assert_eq!(
+            tcp_session.send(bitfield).unwrap() as u32,
+            expected_bitfield_message_length
+        );
+
+        // Leecher --[Interested]-> Seeder
+        let interested = Interested::new();
+        let expected_interested_length_in_byte = 5;
+        // Check all the interested has been sent
+        assert_eq!(
+            tcp_session.send(interested).unwrap(),
+            expected_interested_length_in_byte
+        );
+
+        // Try to receive unchoke
+        // Leecher <-[Unchoke]-- Seeder
+        let received_unchoke_message = match tcp_session.receive() {
+            Ok(maybe_message) => match maybe_message {
+                Some(message) => message,
+                None => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    panic!("an unchoke message was expected")
+                }
+            },
+            Err(error) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("{:?}", error);
+            }
+        };
+        match received_unchoke_message {
+            Message::Unchoke(_) => (),
+            _ => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("message enum should be an Unchoke")
+            }
+        }
 
         // End of test
         tracker_process_child.kill().unwrap();

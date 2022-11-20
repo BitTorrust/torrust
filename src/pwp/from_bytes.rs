@@ -12,6 +12,8 @@ pub trait FromBytes {
         Self: Sized + FromBytes;
 }
 
+// Returns the Message type of the PWP message
+// bytes: the PWP message as an array of at least 5 bytes
 pub fn identity_first_message_type_of(bytes: &[u8]) -> Result<MessageType, Error> {
     for enum_instance in MessageType::iter() {
         if bytes[PWP_MESSAGE_TYPE_FIELD_OFFSET_IN_BYTES] == enum_instance.id() {

@@ -10,4 +10,5 @@ pub enum Message {
     Piece(pwp::Piece),
     Request(pwp::Request),
     Unchoke(pwp::Unchoke),
+    KeepAlive,
 }

@@ -53,6 +53,9 @@ pub enum Error {
     FailedToParseReceivedBitfieldLength,
     FailedToParseReceivedPieceLength,
     FailedToReadFromSocket,
+    FailedToCreateTcpListener,
+    TcpListenerDoesNotExist,
+    FailedToCloneSocketHandle,
 
     // File management error
     DirectoryDoesNotExist,

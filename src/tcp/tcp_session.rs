@@ -2,7 +2,7 @@ use crate::http::Peer;
 use crate::pwp::IntoBytes;
 use crate::Error;
 use std::io::{self, prelude::*, BufReader};
-use std::net::TcpStream;
+use std::net::{SocketAddr, SocketAddrV4, TcpListener, TcpStream};
 
 pub struct TCPSession {
     peer: Peer,
@@ -17,6 +17,25 @@ impl TCPSession {
             peer,
             steam: stream,
         })
+    }
+
+    pub fn accept(listener: TcpListener) -> Result<TCPSession, Error> {
+        let (stream, socket_address) = listener
+            .accept()
+            .map_err(|_| Error::FailedToConnectToPeer)?;
+
+        let peer = Peer::from_socket_address(socket_address);
+
+        Ok(Self {
+            peer,
+            steam: stream,
+        })
+    }
+
+    pub fn listen() -> Result<TcpListener, Error> {
+        let listener =
+            TcpListener::bind("127.0.0.1:6882").map_err(|_| Error::FailedToCreateTcpListener)?;
+        Ok(listener)
     }
 
     fn steam(&self) -> &TcpStream {

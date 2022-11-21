@@ -179,7 +179,7 @@ pub mod user_case {
         let mut bencode_decoder = Decoder::new(&buffer);
         let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
         let torrent = maybe_torrent.unwrap();
-        let info_hash = torrent.info_hash().unwrap();
+        let info_hash = torrent.info_hash();
 
         let handshake = Handshake::new(info_hash, PEER_ID);
         let expected_handshake_length_in_byte = 68;
@@ -283,7 +283,7 @@ pub mod user_case {
         let mut bencode_decoder = Decoder::new(&buffer);
         let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
         let torrent = maybe_torrent.unwrap();
-        let info_hash = torrent.info_hash().unwrap();
+        let info_hash = torrent.info_hash();
 
         let handshake = Handshake::new(info_hash, PEER_ID);
         let expected_handshake_length_in_byte = 68;
@@ -430,7 +430,7 @@ pub mod user_case {
         let mut bencode_decoder = Decoder::new(&buffer);
         let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
         let torrent = maybe_torrent.unwrap();
-        let info_hash = torrent.info_hash().unwrap();
+        let info_hash = torrent.info_hash();
 
         let handshake = Handshake::new(info_hash, PEER_ID);
         let expected_handshake_length_in_byte = 68;

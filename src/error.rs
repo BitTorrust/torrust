@@ -7,6 +7,11 @@ pub enum Error {
     FailedToGetRawBytesFromInfoDict,
     TotalPiecesLengthNotFoundDuringParsing,
     SinglePieceLengthNotFoundDuringParsing,
+    AnnounceBytesCannotBeConvertedToString,
+    HashedInfoDictCannotConvertToTwentyBytesVec,
+    PieceLengthStringCannotBeConvertedToInteger,
+    LengthStringCannotBeConvertedToInteger,
+    NameBytesCannotBeConvertedToString,
 
     // HTTP announce error
     FailedToParseUrl,

@@ -5,36 +5,42 @@ use std::{fs::File, io::Read, path::Path, str::FromStr};
 
 #[derive(Debug)]
 pub struct Torrent {
-    announce: Option<String>,
-    piece_length_in_bytes: Option<u32>,
-    number_of_pieces: Option<u32>,
-    total_length_in_bytes: Option<u32>,
-    name: Option<String>,
-    info_hash: Option<[u8; 20]>, // a 160-bit (20-byte)
+    /// URL of the tracker
+    announce: String,
+    /// number of bytes in each piece
+    piece_length_in_bytes: u32,
+    /// pieces number calculted with total_length_in_bytes and piece_length_in_bytes
+    number_of_pieces: u32,
+    /// length of file
+    total_length_in_bytes: u32,
+    /// the filename
+    name: String,
+    /// a 160-bit (20-byte)
+    info_hash: [u8; 20],
 }
 
 impl Torrent {
-    pub fn announce(&self) -> Option<&String> {
-        self.announce.as_ref()
+    pub fn announce(&self) -> &String {
+        &self.announce
     }
 
-    pub fn piece_length_in_bytes(&self) -> Option<u32> {
+    pub fn piece_length_in_bytes(&self) -> u32 {
         self.piece_length_in_bytes
     }
 
-    pub fn number_of_pieces(&self) -> Option<u32> {
+    pub fn number_of_pieces(&self) -> u32 {
         self.number_of_pieces
     }
 
-    pub fn total_length_in_bytes(&self) -> Option<u32> {
+    pub fn total_length_in_bytes(&self) -> u32 {
         self.total_length_in_bytes
     }
 
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
+    pub fn name(&self) -> &String {
+        &self.name
     }
 
-    pub fn info_hash(&self) -> Option<[u8; 20]> {
+    pub fn info_hash(&self) -> [u8; 20] {
         self.info_hash.clone()
     }
 
@@ -44,8 +50,9 @@ impl Torrent {
             match key.as_str() {
                 "announce" => {
                     self.announce = match pair.1 {
-                        Object::Bytes(byte) => Some(String::from_utf8(byte.to_vec()).unwrap()),
-                        _ => None,
+                        Object::Bytes(byte) => String::from_utf8(byte.to_vec())
+                            .map_err(|_| Error::AnnounceBytesCannotBeConvertedToString)?,
+                        _ => return Err(Error::BencodeObjectHasUnexpectedType),
                     }
                 }
                 "info" => match pair.1 {
@@ -59,27 +66,32 @@ impl Torrent {
                             .map_err(|_| Error::FailedToGetRawBytesFromInfoDict)?;
                         hasher.update(raw_bytes);
                         let hash_vec = hasher.finalize().to_vec();
-                        let hash: [u8; 20] = hash_vec.try_into().clone().unwrap();
-                        self.info_hash = Some(hash);
+                        self.info_hash = hash_vec
+                            .try_into()
+                            .clone()
+                            .map_err(|_| Error::HashedInfoDictCannotConvertToTwentyBytesVec)?;
                     }
                     _ => (),
                 },
                 "piece length" => {
                     self.piece_length_in_bytes = match pair.1 {
-                        Object::Integer(string) => Some(u32::from_str(string).unwrap()),
-                        _ => None,
+                        Object::Integer(string) => u32::from_str(string)
+                            .map_err(|_| Error::PieceLengthStringCannotBeConvertedToInteger)?,
+                        _ => return Err(Error::BencodeObjectHasUnexpectedType),
                     }
                 }
                 "length" => {
                     self.total_length_in_bytes = match pair.1 {
-                        Object::Integer(string) => Some(u32::from_str(string).unwrap()),
-                        _ => None,
+                        Object::Integer(string) => u32::from_str(string)
+                            .map_err(|_| Error::LengthStringCannotBeConvertedToInteger)?,
+                        _ => return Err(Error::BencodeObjectHasUnexpectedType),
                     }
                 }
                 "name" => {
                     self.name = match pair.1 {
-                        Object::Bytes(byte) => Some(String::from_utf8(byte.to_vec()).unwrap()),
-                        _ => None,
+                        Object::Bytes(byte) => String::from_utf8(byte.to_vec())
+                            .map_err(|_| Error::NameBytesCannotBeConvertedToString)?,
+                        _ => return Err(Error::BencodeObjectHasUnexpectedType),
                     }
                 }
                 _ => (),
@@ -102,19 +114,19 @@ impl Torrent {
 
     pub fn from_bencode(bencode_decoder: &mut Decoder) -> Result<Torrent, Error> {
         let mut torrent_result = Torrent {
-            announce: None,
-            piece_length_in_bytes: None,
-            number_of_pieces: None,
-            total_length_in_bytes: None,
-            name: None,
-            info_hash: None,
+            announce: String::from(""),
+            piece_length_in_bytes: 0,
+            number_of_pieces: 0,
+            total_length_in_bytes: 0,
+            name: String::from(""),
+            info_hash: [0; 20],
         };
 
-        let bencode_object = bencode_decoder
+        let maybe_bencode_object = bencode_decoder
             .next_object()
             .map_err(|_| Error::FailedToParseTorrentFile)?;
 
-        match bencode_object {
+        match maybe_bencode_object {
             Some(Object::Dict(mut dict_decoder)) => {
                 torrent_result.decode_dict(&mut dict_decoder)?;
             }
@@ -122,16 +134,10 @@ impl Torrent {
             _ => (),
         };
 
-        torrent_result.number_of_pieces = Some(div_ceil(
-            match torrent_result.total_length_in_bytes() {
-                Some(length) => length,
-                None => return Err(Error::TotalPiecesLengthNotFoundDuringParsing),
-            },
-            match torrent_result.piece_length_in_bytes() {
-                Some(piece_length) => piece_length,
-                None => return Err(Error::SinglePieceLengthNotFoundDuringParsing),
-            },
-        ));
+        torrent_result.number_of_pieces = div_ceil(
+            torrent_result.total_length_in_bytes(),
+            torrent_result.piece_length_in_bytes(),
+        );
 
         Ok(torrent_result)
     }

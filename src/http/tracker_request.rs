@@ -58,8 +58,8 @@ impl TrackerRequest {
     }
 
     pub fn from_torrent(torrent: &Torrent, peer_id: [u8; 20]) -> TrackerRequest {
-        let info_hash = torrent.info_hash().unwrap();
-        let left_to_download = torrent.total_length_in_bytes().unwrap();
+        let info_hash = torrent.info_hash();
+        let left_to_download = torrent.total_length_in_bytes();
         let tracker_request = TrackerRequest::new(
             info_hash,
             peer_id,

@@ -97,7 +97,7 @@ pub mod unitest {
         file.read_to_end(&mut buffer).unwrap();
         let mut bencode_decoder = Decoder::new(&buffer);
         let maybe_torrent = Torrent::from_bencode(&mut bencode_decoder);
-        let info_hash = maybe_torrent.unwrap().info_hash().unwrap();
+        let info_hash = maybe_torrent.unwrap().info_hash();
         let handshake = Handshake::new(info_hash, PEER_ID);
         let expected_handshake_length_in_byte = 68;
         assert_eq!(

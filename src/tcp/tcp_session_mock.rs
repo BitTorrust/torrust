@@ -69,11 +69,11 @@ impl TCPSessionMock {
     }
 
     fn parse_have_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
-        let mut remaining_byte_to_read: [u8; 4] = [0; 4];
+        let mut remaining_bytes_to_read: [u8; 4] = [0; 4];
         self.stream()
-            .read(&mut remaining_byte_to_read)
+            .read(&mut remaining_bytes_to_read)
             .map_err(|_| Error::FailedToReadFromSocket)?;
-        bytes.extend_from_slice(&remaining_byte_to_read);
+        bytes.extend_from_slice(&remaining_bytes_to_read);
         match Have::from_bytes(&bytes) {
             Ok(have_and_size) => Ok(Some(Message::Have(have_and_size.0))),
             Err(error) => Err(error),

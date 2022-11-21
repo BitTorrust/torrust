@@ -76,7 +76,7 @@ impl BitTorrentStateMachine {
 
             state_machine.state_transition();
 
-            thread::sleep(Duration::from_millis(50));
+            // thread::sleep(Duration::from_millis(50));
         }
     }
 

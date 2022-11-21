@@ -74,9 +74,7 @@ impl BitTorrentStateMachine {
                 break;
             }
 
-            if state_machine.last_state != state_machine.state {
-                state_machine.state_transition();
-            }
+            state_machine.state_transition();
 
             thread::sleep(Duration::from_millis(50));
         }
@@ -133,9 +131,9 @@ impl BitTorrentStateMachine {
 
             self.state = PeerToWireState::HandshakeSent;
         } else {
-            // let listener = TCPSession::listen()?;
-            // self.listener.replace(listener);
-            // self.state = PeerToWireState::WaitHandshake;
+            let listener = TCPSessionMock::listen()?;
+            self.listener.replace(listener);
+            self.state = PeerToWireState::WaitHandshake;
         }
 
         Ok(())
@@ -157,9 +155,6 @@ impl BitTorrentStateMachine {
             _ => panic!("Expected handshake."),
         };
 
-        // let mut buffer = vec![0; 68];
-        // tcp_session.receive(&mut buffer).unwrap();
-        // let (handshake_response, _) = Handshake::from_bytes(&buffer).unwrap();
         println!("{:?}", handshake);
 
         self.state = PeerToWireState::NotInterestedAndChoked;
@@ -167,29 +162,31 @@ impl BitTorrentStateMachine {
     }
 
     pub fn wait_handshake(&mut self) -> Result<(), Error> {
-        let mut buffer = vec![0; 68];
         let info_hash = self.torrent.info_hash();
+        let number_of_pieces = self.torrent.number_of_pieces() as usize;
 
-        let listener = self.listener()?;
-        let tcp_session = TCPSession::accept(
-            listener
-                .try_clone()
-                .map_err(|_| Error::FailedToCloneSocketHandle)?,
-        )?;
-        self.tcp_session.replace(tcp_session);
+        {
+            let listener = self.listener()?;
+            let tcp_session = TCPSessionMock::accept(
+                listener
+                    .try_clone()
+                    .map_err(|_| Error::FailedToCloneSocketHandle)?,
+            )?;
+            self.tcp_session.replace(tcp_session);
+        }
         let tcp_session = self.tcp_session()?;
 
-        tcp_session.receive(&mut buffer).unwrap();
-        let (handshake_request, _) = Handshake::from_bytes(&buffer).unwrap();
-        println!("Handshake request => {:?}", handshake_request);
+        let handshake_message = tcp_session.receive().unwrap().unwrap();
+        let handshake = match handshake_message {
+            Message::Handshake(message) => message,
+            _ => panic!("expected handshake"),
+        };
+        println!("Handshake received => {:?}", handshake);
 
         let handshake = Handshake::new(info_hash, PEER_ID);
         tcp_session.send(handshake).unwrap();
 
-        let bitfield = Bitfield::new(BitVec::from_elem(
-            self.torrent.number_of_pieces() as usize,
-            true,
-        ));
+        let bitfield = Bitfield::new(BitVec::from_elem(number_of_pieces, true));
         tcp_session.send(bitfield).unwrap();
 
         self.state = PeerToWireState::NotInterestingAndChoking;
@@ -198,6 +195,8 @@ impl BitTorrentStateMachine {
     }
 
     pub fn not_interested_and_choked(&mut self) -> Result<(), Error> {
+        let total_pieces = self.torrent.number_of_pieces() as usize;
+
         let received_bitfield = {
             let tcp_session = self.tcp_session()?;
             let bitfield_message = tcp_session.receive().unwrap().unwrap();
@@ -208,10 +207,7 @@ impl BitTorrentStateMachine {
 
             println!("{:?}", received_bitfield);
 
-            let bitfield = Bitfield::new(BitVec::from_elem(
-                self.torrent.number_of_pieces() as usize,
-                false,
-            ));
+            let bitfield = Bitfield::new(BitVec::from_elem(total_pieces, false));
             tcp_session.send(bitfield).unwrap();
 
             let interested = Interested::new();
@@ -231,7 +227,7 @@ impl BitTorrentStateMachine {
         let unchoke_message = tcp_session.receive().unwrap().unwrap();
 
         let unchoke = match unchoke_message {
-            Message::Bitfield(unchoke) => unchoke,
+            Message::Unchoke(unchoke) => unchoke,
             _ => panic!("expected unchoke"),
         };
 
@@ -243,8 +239,7 @@ impl BitTorrentStateMachine {
     }
 
     pub fn interested_and_unchoked(&mut self) -> Result<(), Error> {
-        let tcp_session = self.tcp_session()?;
-        self.download_pieces(&tcp_session);
+        self.download_pieces();
 
         self.state = PeerToWireState::Done;
 
@@ -256,27 +251,23 @@ impl BitTorrentStateMachine {
     }
 
     pub fn not_interesting_and_choking(&mut self) -> Result<(), Error> {
-        let (received_bitfield, interested_message) = {
-            let tcp_session = self.tcp_session()?;
-            let bitfield_length = 5 + torrent::div_ceil(self.torrent.number_of_pieces(), 8);
-            let interested_length = MessageType::Interested.base_length()
-                + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES;
-
-            let mut buffer = vec![0; bitfield_length as usize];
-            tcp_session.receive(&mut buffer).unwrap();
-
-            let (received_bitfield, _) = Bitfield::from_bytes(&buffer).unwrap();
-            println!("{:?}", received_bitfield);
-
-            buffer = vec![0; interested_length as usize];
-            tcp_session.receive(&mut buffer).unwrap();
-            let (interested_message, _) = Interested::from_bytes(&buffer).unwrap();
-            println!("{:?}", interested_message);
-
-            (received_bitfield, interested_message)
+        let tcp_session = self.tcp_session()?;
+        let bitfield_message = tcp_session.receive().unwrap().unwrap();
+        let bitfield = match bitfield_message {
+            Message::Bitfield(bitfield) => bitfield,
+            _ => panic!("expected bitfield"),
         };
 
-        self.peer_bitfield.replace(received_bitfield);
+        println!("Bitfield received: {:?}", bitfield);
+
+        let interested_message = tcp_session.receive().unwrap().unwrap();
+        let interested = match interested_message {
+            Message::Interested(interested) => interested,
+            _ => panic!("expected interested"),
+        };
+
+        println!("Interested received: {:?}", interested);
+        self.peer_bitfield.replace(bitfield);
         self.state = PeerToWireState::InterestingAndChoking;
 
         Ok(())
@@ -296,47 +287,17 @@ impl BitTorrentStateMachine {
     pub fn interesting_and_unchoking(&mut self) -> Result<(), Error> {
         let tcp_session = self.tcp_session()?;
 
-        // This state requires the tcp_session api described on
-        // tcp_session_mock.rs
-        //
-        // let received_message = tcp_session.receive()?;
-        // match received_message {
-        //     Some(Request) => {
-        //         self.upload_pieces(tcp_session, received_message: Message);
-        //         self.state = PeerToWireState::InterestingAndUnchoking;
-        //     }
-        //     Some(Have) => self.state = PeerToWireState::InterestingAndUnchoking,
-        //     Some(NotInterested) => self.state = PeerToWireState::Done,
-
-        //     _ => unimplemented!(),
-        // }
-
-        let total_length = self.torrent.total_length_in_bytes();
-        let block_length = 16 * 1024;
-
-        let number_of_requests = torrent::div_ceil(total_length, block_length);
-
-        // for _request in 0..number_of_requests {
-        //     let request_message_length = MessageType::Request.base_length()
-        //         + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES;
-        //     let mut buffer = vec![0; request_message_length as usize];
-
-        //     tcp_session.receive(&mut buffer).unwrap();
-        //     let (request, _) = Request::from_bytes(&buffer).unwrap();
-        //     println!("{:?}", request);
-
-        //     self.upload_pieces(tcp_session, request);
-        // }
-
-        // let not_interested_message_length = MessageType::Interested.base_length()
-        //     + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES;
-
-        // let mut buffer = vec![0; not_interested_message_length as usize];
-
-        // tcp_session.receive(&mut buffer).unwrap();
-        // let (not_interested, _) = NotInterested::from_bytes(&buffer).unwrap();
-        // println!("{:?}", not_interested);
-        // self.state = PeerToWireState::Done;
+        let received_message = tcp_session.receive()?;
+        println!("Received: {:?}", received_message);
+        match received_message {
+            Some(Message::Request(request)) => {
+                self.upload_pieces(request);
+                self.state = PeerToWireState::InterestingAndUnchoking;
+            }
+            Some(Message::Have(_)) => self.state = PeerToWireState::InterestingAndUnchoking,
+            Some(Message::NotInterested(_)) => self.state = PeerToWireState::Done,
+            _ => unimplemented!(),
+        }
 
         Ok(())
     }
@@ -373,8 +334,8 @@ impl BitTorrentStateMachine {
         .unwrap();
     }
 
-    fn upload_pieces(&self, tcp_session: &TCPSessionMock, request: Request) {
-        println!("Uploading pieces");
+    fn upload_pieces(&mut self, request: Request) {
+        println!("Uploading piece");
 
         let total_length = self.torrent.total_length_in_bytes();
         let piece_length = self.torrent.piece_length_in_bytes();
@@ -389,10 +350,12 @@ impl BitTorrentStateMachine {
         let data = file_on_disk.read(piece_index, block_offset).unwrap();
 
         let piece = Piece::new(piece_index, block_offset, data);
+
+        let tcp_session = self.tcp_session().unwrap();
         tcp_session.send(piece).unwrap();
     }
 
-    fn download_pieces(&self, tcp_session: &TCPSessionMock) {
+    fn download_pieces(&mut self) {
         println!("Downloading pieces");
 
         let total_length = self.torrent.total_length_in_bytes();
@@ -407,6 +370,7 @@ impl BitTorrentStateMachine {
         let file_on_disk =
             BlockReaderWriter::new(&filename, piece_length, total_length as usize).unwrap();
 
+        let tcp_session = self.tcp_session().unwrap();
         for block in 0..total_blocks {
             let bytes_to_read = 13
                 + if block == total_blocks - 1 {
@@ -443,9 +407,9 @@ impl BitTorrentStateMachine {
         tcp_session.send(not_interested).unwrap();
     }
 
-    fn tcp_session(&self) -> Result<&TCPSessionMock, Error> {
+    fn tcp_session(&mut self) -> Result<&mut TCPSessionMock, Error> {
         self.tcp_session
-            .as_ref()
+            .as_mut()
             .ok_or(Error::TcpSessionDoesNotExist)
     }
 

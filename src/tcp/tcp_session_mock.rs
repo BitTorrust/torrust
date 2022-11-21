@@ -11,7 +11,7 @@ use {
     },
     std::{
         io::{self, prelude::*},
-        net::TcpStream,
+        net::{TcpListener, TcpStream},
     },
 };
 
@@ -38,6 +38,22 @@ impl TCPSessionMock {
             peer,
             stream: stream,
         })
+    }
+
+    pub fn accept(listener: TcpListener) -> Result<Self, Error> {
+        let (stream, socket_address) = listener
+            .accept()
+            .map_err(|_| Error::FailedToConnectToPeer)?;
+
+        let peer = Peer::from_socket_address(socket_address);
+
+        Ok(Self { peer, stream })
+    }
+
+    pub fn listen() -> Result<TcpListener, Error> {
+        let listener =
+            TcpListener::bind("127.0.0.1:6882").map_err(|_| Error::FailedToCreateTcpListener)?;
+        Ok(listener)
     }
 
     fn stream(&self) -> &TcpStream {
@@ -81,7 +97,7 @@ impl TCPSessionMock {
     }
 
     fn parse_request_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
-        let mut remaining_bytes_to_read: [u8; 24] = [0; 3 * 8];
+        let mut remaining_bytes_to_read: [u8; 12] = [0; 3 * 4];
         self.stream()
             .read(&mut remaining_bytes_to_read)
             .map_err(|_| Error::FailedToReadFromSocket)?;

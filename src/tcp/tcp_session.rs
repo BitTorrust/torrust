@@ -19,25 +19,6 @@ impl TCPSession {
         })
     }
 
-    pub fn accept(listener: TcpListener) -> Result<TCPSession, Error> {
-        let (stream, socket_address) = listener
-            .accept()
-            .map_err(|_| Error::FailedToConnectToPeer)?;
-
-        let peer = Peer::from_socket_address(socket_address);
-
-        Ok(Self {
-            peer,
-            steam: stream,
-        })
-    }
-
-    pub fn listen() -> Result<TcpListener, Error> {
-        let listener =
-            TcpListener::bind("127.0.0.1:6882").map_err(|_| Error::FailedToCreateTcpListener)?;
-        Ok(listener)
-    }
-
     fn steam(&self) -> &TcpStream {
         &self.steam
     }

@@ -49,6 +49,84 @@ impl TCPSessionMock {
         self.stream().write(&(bittorrent_message.into_bytes()))
     }
 
+    fn parse_bitfield_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
+        let remaining_bytes_to_read_length = u32::from_be_bytes(
+            bytes[0..4]
+                .try_into()
+                .map_err(|_| Error::FailedToParseReceivedBitfieldLength)?,
+        );
+        let mut remaining_bytes_to_read = Vec::new();
+        remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);
+
+        self.stream()
+            .read(&mut remaining_bytes_to_read)
+            .map_err(|_| Error::FailedToReadFromSocket)?;
+        bytes.extend_from_slice(&remaining_bytes_to_read);
+        match Bitfield::from_bytes(&bytes) {
+            Ok(bitfield_and_size) => Ok(Some(Message::Bitfield(bitfield_and_size.0))),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn parse_have_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
+        let mut remaining_byte_to_read: [u8; 4] = [0; 4];
+        self.stream()
+            .read(&mut remaining_byte_to_read)
+            .map_err(|_| Error::FailedToReadFromSocket)?;
+        bytes.extend_from_slice(&remaining_byte_to_read);
+        match Have::from_bytes(&bytes) {
+            Ok(have_and_size) => Ok(Some(Message::Have(have_and_size.0))),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn parse_request_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
+        let mut remaining_bytes_to_read: [u8; 24] = [0; 3 * 8];
+        self.stream()
+            .read(&mut remaining_bytes_to_read)
+            .map_err(|_| Error::FailedToReadFromSocket)?;
+        bytes.extend_from_slice(&remaining_bytes_to_read);
+        match Request::from_bytes(&bytes) {
+            Ok(request_and_size) => Ok(Some(Message::Request(request_and_size.0))),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn parse_piece_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
+        let remaining_bytes_to_read_length = u32::from_be_bytes(
+            bytes[0..4]
+                .try_into()
+                .map_err(|_| Error::FailedToParseReceivedPieceLength)?,
+        );
+        let mut remaining_bytes_to_read = Vec::new();
+        remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);
+
+        self.stream()
+            .read(&mut remaining_bytes_to_read)
+            .map_err(|_| Error::FailedToReadFromSocket)?;
+        bytes.extend_from_slice(&remaining_bytes_to_read);
+        match Piece::from_bytes(&bytes) {
+            Ok(piece_and_size) => Ok(Some(Message::Piece(piece_and_size.0))),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn parse_message(
+        &self,
+        message: MessageType,
+        bytes: &mut Vec<u8>,
+    ) -> Result<Option<Message>, Error> {
+        match message {
+            MessageType::Bitfield => self.parse_bitfield_message(bytes),
+            MessageType::Unchoke => Ok(Some(Message::Unchoke(Unchoke::new()))),
+            MessageType::Interested => Ok(Some(Message::Interested(Interested::new()))),
+            MessageType::NotInterested => Ok(Some(Message::NotInterested(NotInterested::new()))),
+            MessageType::Have => self.parse_have_message(bytes),
+            MessageType::Request => self.parse_request_message(bytes),
+            MessageType::Piece => self.parse_piece_message(bytes),
+        }
+    }
+
     /// Write the received bytes in the buffer
     /// Returns the number of bytes received
     pub fn receive(&mut self) -> Result<Option<Message>, Error> {
@@ -114,71 +192,7 @@ impl TCPSessionMock {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&zero_to_fourth_read_bytes);
         match identity_first_message_type_of(&bytes) {
-            Ok(message) => match message {
-                MessageType::Bitfield => {
-                    let remaining_bytes_to_read_length = u32::from_be_bytes(
-                        bytes[0..4]
-                            .try_into()
-                            .map_err(|_| Error::FailedToParseReceivedBitfieldLength)?,
-                    );
-                    let mut remaining_bytes_to_read = Vec::new();
-                    remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);
-
-                    self.stream()
-                        .read(&mut remaining_bytes_to_read)
-                        .map_err(|_| Error::FailedToReadFromSocket)?;
-                    bytes.extend_from_slice(&remaining_bytes_to_read);
-                    match Bitfield::from_bytes(&bytes) {
-                        Ok(bitfield_and_size) => Ok(Some(Message::Bitfield(bitfield_and_size.0))),
-                        Err(error) => Err(error),
-                    }
-                }
-                MessageType::Unchoke => Ok(Some(Message::Unchoke(Unchoke::new()))),
-                MessageType::Interested => Ok(Some(Message::Interested(Interested::new()))),
-                MessageType::NotInterested => {
-                    Ok(Some(Message::NotInterested(NotInterested::new())))
-                }
-                MessageType::Have => {
-                    let mut remaining_byte_to_read: [u8; 4] = [0; 4];
-                    self.stream()
-                        .read(&mut remaining_byte_to_read)
-                        .map_err(|_| Error::FailedToReadFromSocket)?;
-                    bytes.extend_from_slice(&remaining_byte_to_read);
-                    match Have::from_bytes(&bytes) {
-                        Ok(have_and_size) => Ok(Some(Message::Have(have_and_size.0))),
-                        Err(error) => Err(error),
-                    }
-                }
-                MessageType::Request => {
-                    let mut remaining_bytes_to_read: [u8; 24] = [0; 3 * 8];
-                    self.stream()
-                        .read(&mut remaining_bytes_to_read)
-                        .map_err(|_| Error::FailedToReadFromSocket)?;
-                    bytes.extend_from_slice(&remaining_bytes_to_read);
-                    match Request::from_bytes(&bytes) {
-                        Ok(request_and_size) => Ok(Some(Message::Request(request_and_size.0))),
-                        Err(error) => Err(error),
-                    }
-                }
-                MessageType::Piece => {
-                    let remaining_bytes_to_read_length = u32::from_be_bytes(
-                        bytes[0..4]
-                            .try_into()
-                            .map_err(|_| Error::FailedToParseReceivedPieceLength)?,
-                    );
-                    let mut remaining_bytes_to_read = Vec::new();
-                    remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);
-
-                    self.stream()
-                        .read(&mut remaining_bytes_to_read)
-                        .map_err(|_| Error::FailedToReadFromSocket)?;
-                    bytes.extend_from_slice(&remaining_bytes_to_read);
-                    match Piece::from_bytes(&bytes) {
-                        Ok(piece_and_size) => Ok(Some(Message::Piece(piece_and_size.0))),
-                        Err(error) => Err(error),
-                    }
-                }
-            },
+            Ok(message) => self.parse_message(message, &mut bytes),
             Err(error) => Err(error),
         }
     }

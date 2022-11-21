@@ -5,12 +5,18 @@ use std::{fs::File, io::Read, path::Path, str::FromStr};
 
 #[derive(Debug)]
 pub struct Torrent {
-    announce: String,           // URL of the tracker
-    piece_length_in_bytes: u32, // number of bytes in each piece
-    number_of_pieces: u32, // pieces number calculted with total_length_in_bytes and piece_length_in_bytes
-    total_length_in_bytes: u32, // length of file
-    name: String,          // the filename
-    info_hash: [u8; 20],   // a 160-bit (20-byte)
+    /// URL of the tracker
+    announce: String,
+    /// number of bytes in each piece
+    piece_length_in_bytes: u32,
+    /// pieces number calculted with total_length_in_bytes and piece_length_in_bytes
+    number_of_pieces: u32,
+    /// length of file
+    total_length_in_bytes: u32,
+    /// the filename
+    name: String,
+    /// a 160-bit (20-byte)
+    info_hash: [u8; 20],
 }
 
 impl Torrent {

@@ -158,7 +158,7 @@ impl BitTorrentStateMachine {
 
     pub fn wait_handshake(&mut self) -> Result<(), Error> {
         let mut buffer = vec![0; 68];
-        let info_hash = self.torrent.info_hash().unwrap();
+        let info_hash = self.torrent.info_hash();
 
         let listener = self.listener()?;
         let tcp_session = TCPSession::accept(
@@ -177,7 +177,7 @@ impl BitTorrentStateMachine {
         tcp_session.send(handshake).unwrap();
 
         let bitfield = Bitfield::new(BitVec::from_elem(
-            self.torrent.number_of_pieces().unwrap() as usize,
+            self.torrent.number_of_pieces() as usize,
             true,
         ));
         tcp_session.send(bitfield).unwrap();
@@ -245,8 +245,7 @@ impl BitTorrentStateMachine {
     pub fn not_interesting_and_choking(&mut self) -> Result<(), Error> {
         let (received_bitfield, interested_message) = {
             let tcp_session = self.tcp_session()?;
-            let bitfield_length =
-                5 + torrent::div_ceil(self.torrent.number_of_pieces().unwrap(), 8);
+            let bitfield_length = 5 + torrent::div_ceil(self.torrent.number_of_pieces(), 8);
             let interested_length = MessageType::Interested.base_length()
                 + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES;
 
@@ -299,7 +298,7 @@ impl BitTorrentStateMachine {
         //     _ => unimplemented!(),
         // }
 
-        let total_length = self.torrent.total_length_in_bytes().unwrap();
+        let total_length = self.torrent.total_length_in_bytes();
         let block_length = 16 * 1024;
 
         let number_of_requests = torrent::div_ceil(total_length, block_length);
@@ -364,8 +363,8 @@ impl BitTorrentStateMachine {
     fn upload_pieces(&self, tcp_session: &TCPSession, request: Request) {
         println!("Uploading pieces");
 
-        let total_length = self.torrent.total_length_in_bytes().unwrap();
-        let piece_length = self.torrent.piece_length_in_bytes().unwrap();
+        let total_length = self.torrent.total_length_in_bytes();
+        let piece_length = self.torrent.piece_length_in_bytes();
 
         let filename = &self.working_directory;
         println!("Uploading from {:?}", filename);

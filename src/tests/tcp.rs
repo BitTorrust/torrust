@@ -578,15 +578,6 @@ pub mod user_case {
         );
         let expected_piece_bytes =
             read_bytes_from(&path_build_to_pwp_message("venon_piece_0x00_0x0000.bin"));
-
-        println!(
-            "received_piece.data() size {:?} ",
-            received_piece.data().len()
-        );
-        println!(
-            "expecting expected_piece_bytes size {:?}",
-            expected_piece_bytes.len()
-        );
         assert_eq!(received_piece.data(), &expected_piece_bytes);
 
         // End of test

@@ -54,7 +54,7 @@ impl TCPSessionMock {
             bytes[0..4]
                 .try_into()
                 .map_err(|_| Error::FailedToParseReceivedBitfieldLength)?,
-        ) - MessageType::Bitfield.base_length();
+        ) - 1;
         let mut remaining_bytes_to_read = Vec::new();
         remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);
 
@@ -97,8 +97,7 @@ impl TCPSessionMock {
             bytes[0..4]
                 .try_into()
                 .map_err(|_| Error::FailedToParseReceivedPieceLength)?,
-        ) - MessageType::Piece.base_length()
-            + 8;
+        ) - 1;
 
         let mut remaining_bytes_to_read = Vec::new();
         remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);

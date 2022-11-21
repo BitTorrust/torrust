@@ -385,8 +385,6 @@ impl BitTorrentStateMachine {
             let request = Request::new(piece_index, block_offset, bytes_to_read as u32 - 13);
             tcp_session.send(request).unwrap();
 
-            std::thread::sleep(std::time::Duration::from_millis(20));
-
             let piece_message = tcp_session.receive().unwrap().unwrap();
             let piece = match piece_message {
                 Message::Piece(piece) => piece,

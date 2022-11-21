@@ -395,7 +395,7 @@ pub mod user_case {
         let _ = fs::remove_file(seeder_aria_file);
     }
 
-    //#[ignore = "CI doesn't have a local network"]
+    #[ignore = "CI doesn't have a local network"]
     #[test]
     pub fn tcp_session_receive_piece() {
         // Init local network

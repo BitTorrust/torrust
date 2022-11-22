@@ -6,7 +6,7 @@ use crate::{
         from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, Message, MessageType,
         NotInterested, Piece, Request, Unchoke,
     },
-    tcp::TCPSessionMock,
+    tcp::TcpSession,
     torrent,
     torrent::Torrent,
 };
@@ -55,7 +55,7 @@ pub enum ClientMode {
 // Peer : the client I am communicating with
 pub struct BitTorrentStateMachine {
     last_state: PeerToWireState,
-    tcp_session: Option<TCPSessionMock>,
+    tcp_session: Option<TcpSession>,
     state: PeerToWireState,
     torrent: Torrent,
     tracker_response: Option<TrackerResponse>,
@@ -121,7 +121,7 @@ impl BitTorrentStateMachine {
         // TODO: Remove after sprint seeder 100% & leecher 0%
         if self.client_mode() == ClientMode::Leecher {
             // TODO: talk to the right peers
-            let tcp_session = TCPSessionMock::connect(peer.clone()).unwrap();
+            let tcp_session = TcpSession::connect(peer.clone()).unwrap();
             self.tcp_session.replace(tcp_session);
 
             let tcp_session = self.tcp_session()?;
@@ -129,7 +129,7 @@ impl BitTorrentStateMachine {
 
             self.state = PeerToWireState::HandshakeSent;
         } else {
-            let listener = TCPSessionMock::listen()?;
+            let listener = TcpSession::listen()?;
             self.listener.replace(listener);
             self.state = PeerToWireState::WaitHandshake;
         }
@@ -165,7 +165,7 @@ impl BitTorrentStateMachine {
 
         {
             let listener = self.listener()?;
-            let tcp_session = TCPSessionMock::accept(
+            let tcp_session = TcpSession::accept(
                 listener
                     .try_clone()
                     .map_err(|_| Error::FailedToCloneSocketHandle)?,
@@ -403,7 +403,7 @@ impl BitTorrentStateMachine {
         tcp_session.send(not_interested).unwrap();
     }
 
-    fn tcp_session(&mut self) -> Result<&mut TCPSessionMock, Error> {
+    fn tcp_session(&mut self) -> Result<&mut TcpSession, Error> {
         self.tcp_session
             .as_mut()
             .ok_or(Error::TcpSessionDoesNotExist)

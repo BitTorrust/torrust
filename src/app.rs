@@ -1,9 +1,7 @@
 /* Things are always a struct until they become something else */
 
 use crate::{cli::Args, error::Error, torrent::Torrent, BitTorrentStateMachine};
-use bendy::decoding::Decoder;
 use clap::Parser;
-use std::{fs::File, io::Read, path::PathBuf};
 
 pub struct App {}
 

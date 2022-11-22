@@ -3,12 +3,12 @@ pub mod user_case {
     use crate::{
         http::Peer,
         pwp::{
-            Bitfield, FromBytes, Handshake, Interested, MandatoryBitTorrentMessageFields, Message,
-            MessageType, Piece, Request,
+            Bitfield, Handshake, Interested, MandatoryBitTorrentMessageFields, Message,
+            MessageType, Request,
         },
         tcp::TcpSession,
-        tests::pwp::unittest::{self, path_build_to_pwp_message, read_bytes_from},
-        BlockReaderWriter, Error, Torrent,
+        tests::pwp::unittest::{path_build_to_pwp_message, read_bytes_from},
+        BlockReaderWriter, Torrent,
     };
     use std::{
         fs::{self, File},

@@ -1,11 +1,8 @@
 use crate::{
     error::Error,
     file_management::BlockReaderWriter,
-    http::{Event, TrackerRequest, TrackerResponse},
-    pwp::{
-        from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, Message, MessageType,
-        NotInterested, Piece, Request, Unchoke,
-    },
+    http::{TrackerRequest, TrackerResponse},
+    pwp::{Bitfield, Handshake, Have, Interested, Message, NotInterested, Piece, Request, Unchoke},
     tcp::TcpSession,
     torrent,
     torrent::Torrent,
@@ -13,7 +10,7 @@ use crate::{
 
 use bit_vec::BitVec;
 use reqwest::Url;
-use std::{net::TcpListener, path::PathBuf, thread, time::Duration};
+use std::{net::TcpListener, path::PathBuf};
 
 mod tracker_address;
 pub use tracker_address::TrackerAddress;
@@ -28,21 +25,15 @@ pub enum PeerToWireState {
     Idle,
     SendTrackerRequest,
     TrackerRequestSent,
-    UnconnectedWithPeers,
     HandshakeSent,
     WaitHandshake,
-    ConnectedWithPeer,
-    ConnectionClosed,
     //Download states
     NotInterestedAndChoked,
     InterestedAndChoked,
     InterestedAndUnchoked,
-    NotInterestedAndUnchoked,
     NotInterestingAndChoking,
     InterestingAndChoking,
     InterestingAndUnchoking,
-    NotInterestingAndUnchoking,
-
     Done,
 }
 #[derive(PartialEq)]

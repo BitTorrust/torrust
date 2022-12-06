@@ -13,17 +13,17 @@ pub enum Message {
     KeepAlive,
 }
 
-impl Message {
-    pub fn into_inner(self) -> Box<dyn IntoBytes + 'static> {
+impl IntoBytes for Message {
+    fn into_bytes(self) -> Vec<u8> {
         match self {
-            Message::Handshake(m) => Box::new(m),
-            Message::Bitfield(m) => Box::new(m),
-            Message::Have(m) => Box::new(m),
-            Message::Interested(m) => Box::new(m),
-            Message::NotInterested(m) => Box::new(m),
-            Message::Piece(m) => Box::new(m),
-            Message::Request(m) => Box::new(m),
-            Message::Unchoke(m) => Box::new(m),
+            Message::Handshake(m) => m.into_bytes(),
+            Message::Bitfield(m) => m.into_bytes(),
+            Message::Have(m) => m.into_bytes(),
+            Message::Interested(m) => m.into_bytes(),
+            Message::NotInterested(m) => m.into_bytes(),
+            Message::Piece(m) => m.into_bytes(),
+            Message::Request(m) => m.into_bytes(),
+            Message::Unchoke(m) => m.into_bytes(),
         }
     }
 }

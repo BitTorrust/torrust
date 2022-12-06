@@ -110,13 +110,12 @@ impl TcpHandler {
         message_receiver: Receiver<(Peer, Message)>,
     ) {
         while let Ok((peer, message)) = message_receiver.recv() {
-            let message = message.into_inner();
             peers
                 .lock()
                 .unwrap()
                 .get(&peer)
                 .unwrap()
-                .send_bytes(message.into_bytes())
+                .send(message)
                 .unwrap();
         }
     }

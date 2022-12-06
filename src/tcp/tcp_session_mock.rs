@@ -45,10 +45,6 @@ impl TCPSessionMock {
         self.steam().write(&(bittorrent_message.into_bytes()))
     }
 
-    pub fn send_bytes(&self, bytes: Vec<u8>) -> Result<usize, io::Error> {
-        self.steam.write(&bytes)
-    }
-
     /// Write the received bytes in the buffer
     /// Returns the number of bytes received
     pub fn receive(&mut self) -> Result<Option<Message>, io::Error> {

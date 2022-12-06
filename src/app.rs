@@ -16,7 +16,6 @@ impl App {
         let torrent = Torrent::from_file(args.torrent_file())?;
         let directory = args.working_directory();
 
-        //BitTorrentStateMachine::run(torrent, directory);
         StateMachine::new(torrent, directory).run();
 
         Ok(())

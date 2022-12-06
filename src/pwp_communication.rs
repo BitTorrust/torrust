@@ -91,7 +91,11 @@ impl BitTorrentStateMachine {
     }
 
     pub fn send_tracker_request(&mut self) -> Result<(), Error> {
-        let tracker_request = TrackerRequest::from_torrent(&self.torrent, PEER_ID);
+        let tracker_request = TrackerRequest::from_torrent(
+            &self.torrent,
+            PEER_ID,
+            self.torrent.total_length_in_bytes(),
+        );
         let tracker_address = Self::tracker_address(&self.torrent)?;
         let response = TrackerRequest::send_request(tracker_request, tracker_address)?;
 

@@ -1,35 +1,47 @@
 use {
-    crate::{error::Error, http::Peer, pwp::Message, tcp::TcpSession},
+    crate::{
+        error::Error, http::Peer, http::TrackerRequest, pwp::Message,
+        pwp_communication::TrackerAddress, tcp::TcpSession, torrent::Torrent,
+    },
     crossbeam_channel::{Receiver, Sender},
-    log::warn,
     std::{
         collections::HashMap,
-        net::{SocketAddr, TcpListener, TcpStream},
+        net::{TcpListener, TcpStream},
+        path::PathBuf,
         sync::{Arc, Mutex},
         thread,
         time::Duration,
     },
 };
 
+const PEER_ID: [u8; 20] = [
+    0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+    0xAA, 0xAA, 0xAA, 0xAD,
+];
+
 #[derive(Debug)]
 pub struct StateMachine {
     message_receiver: Receiver<(Peer, Message)>,
     tcp_handler: TcpHandler,
+    torrent: Torrent,
     // structure to store the state of each peer? HashMap<Peer, BitTorrentState>
 }
 
 impl StateMachine {
-    pub fn new() -> Self {
+    pub fn new(torrent: Torrent, working_directory: &PathBuf) -> Self {
         let (message_sender, message_receiver) = crossbeam_channel::unbounded();
         let tcp_handler = TcpHandler::new(message_sender);
 
         Self {
             message_receiver,
             tcp_handler,
+            torrent,
         }
     }
 
     pub fn run(&self) {
+        self.send_tracker_request().unwrap();
+
         while let Ok((peer, message)) = self.message_receiver.recv() {
             log::debug!("Received message {:?} from {:?}", message, peer);
             // match and handle message
@@ -43,6 +55,23 @@ impl StateMachine {
 
     fn connect(&mut self, peer: Peer) {
         self.tcp_handler.connect(peer).unwrap();
+    }
+
+    fn send_tracker_request(&self) -> Result<(), Error> {
+        // TODO: I think for now it's ok to assume that we either have the whole file or
+        // nothing at all when the client starts. We should read from disk to check what
+        // is the case and fill `left_to_download` with 0 or torrent_size.
+        let torrent = &self.torrent;
+        let left_to_download = torrent.total_length_in_bytes();
+
+        let tracker_request = TrackerRequest::from_torrent(torrent, PEER_ID, left_to_download);
+        let tracker_address = TrackerAddress::from_torrent(&self.torrent)?;
+        log::debug!("Sending tracker request {:?}", tracker_request);
+
+        let response = TrackerRequest::send_request(tracker_request, tracker_address)?;
+        log::debug!("Tracker response: {:?}", response);
+
+        Ok(())
     }
 }
 
@@ -65,11 +94,8 @@ impl TcpHandler {
 
     /// Connect to a Peer and insert it in the hashmap of Peers.
     pub fn connect(&mut self, peer: Peer) -> Result<(), Error> {
-        let stream =
-            TcpStream::connect(peer.socket_address()).map_err(|_| Error::FailedToConnectToPeer)?;
-
-        // let tcp_session = TCPSession::from_stream
-        self.peers.lock().unwrap().insert(peer, unimplemented!());
+        let tcp_session = TcpSession::connect(peer.clone())?;
+        self.peers.lock().unwrap().insert(peer, tcp_session);
 
         Ok(())
     }
@@ -83,7 +109,7 @@ impl TcpHandler {
         message_sender: Sender<(Peer, Message)>,
         tcp_receiver: Receiver<(Peer, Message)>,
     ) {
-        log::debug!("TcpHandler loop started");
+        log::info!("Thread TcpHandler started.");
 
         let peers_ref = peers.clone();
         thread::spawn(move || TcpHandler::connection_listener(peers_ref));
@@ -109,6 +135,8 @@ impl TcpHandler {
         peers: Arc<Mutex<HashMap<Peer, TcpSession>>>,
         tcp_receiver: Receiver<(Peer, Message)>,
     ) {
+        log::info!("Thread TcpSender started.");
+
         while let Ok((peer, message)) = tcp_receiver.recv() {
             peers
                 .lock()
@@ -118,6 +146,8 @@ impl TcpHandler {
                 .send(message)
                 .unwrap();
         }
+
+        log::info!("Thread TcpSender exited.");
     }
 
     /// This function spawns a thread that continously listen for external
@@ -125,19 +155,21 @@ impl TcpHandler {
     /// a file that we are seeding. The functionn accepts connections and
     /// insert the respective TcpSession into the Peers hashmap.
     fn connection_listener(peers: Arc<Mutex<HashMap<Peer, TcpSession>>>) {
-        log::debug!("Listening for connections");
+        log::info!("Thread ConnectionListener started.");
 
-        // TODO: check the port
-        let tcp_listener = TcpListener::bind("0.0.0.0:6969").unwrap();
+        // TODO: check the port. We should use the same port we annouce to the tracker.
+        let tcp_listener = TcpListener::bind("0.0.0.0:6882").unwrap();
 
         for stream in tcp_listener.incoming() {
             let stream = stream.unwrap();
             let address = stream.peer_addr().unwrap();
-            log::info!("Peer {} initiated a connection.", address);
             let peer = Peer::from_socket_address(address);
 
-            // let tcp_session = TCPSession::from_stream
-            peers.lock().unwrap().insert(peer, unimplemented!());
+            log::info!("Peer {} initiated a connection.", address);
+            let tcp_session = TcpSession::from_stream(stream).unwrap();
+            peers.lock().unwrap().insert(peer, tcp_session);
         }
+
+        log::info!("Thread ConnectionListener exited.");
     }
 }

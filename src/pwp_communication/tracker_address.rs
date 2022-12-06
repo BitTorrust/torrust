@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::{error::Error, torrent::Torrent};
 use reqwest::Url;
 
 pub struct TrackerAddress {
@@ -7,6 +7,12 @@ pub struct TrackerAddress {
 }
 
 impl TrackerAddress {
+    pub fn from_torrent(torrent: &Torrent) -> Result<Self, Error> {
+        let tracker_url = Url::parse(torrent.announce()).map_err(|_| Error::InvalidURLAddress)?;
+
+        TrackerAddress::from_url(tracker_url)
+    }
+
     pub fn from_url(url: Url) -> Result<Self, Error> {
         let host = url.host().ok_or(Error::TrackerHostNotProvided)?.to_string();
         let port = url.port().ok_or(Error::TrackerPortNotProvided)?;

@@ -24,6 +24,7 @@ impl IntoBytes for Message {
             Message::Piece(m) => m.into_bytes(),
             Message::Request(m) => m.into_bytes(),
             Message::Unchoke(m) => m.into_bytes(),
+            Message::KeepAlive => unimplemented!("IntoBytes not yet implemented for KeepAlive"),
         }
     }
 }

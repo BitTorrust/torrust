@@ -15,6 +15,7 @@ use {
     },
 };
 
+#[derive(Debug)]
 pub struct TcpSession {
     peer: Peer,
     stream: TcpStream,

@@ -1,5 +1,5 @@
 use {
-    crate::{error::Error, http::Peer, pwp::Message, tcp::TCPSessionMock},
+    crate::{error::Error, http::Peer, pwp::Message, tcp::TcpSession},
     crossbeam_channel::{Receiver, Sender},
     log::warn,
     std::{
@@ -48,7 +48,7 @@ impl StateMachine {
 
 #[derive(Debug)]
 pub struct TcpHandler {
-    peers: Arc<Mutex<HashMap<Peer, TCPSessionMock>>>,
+    peers: Arc<Mutex<HashMap<Peer, TcpSession>>>,
     tcp_sender: Sender<(Peer, Message)>,
 }
 
@@ -79,7 +79,7 @@ impl TcpHandler {
     }
 
     pub fn run(
-        peers: Arc<Mutex<HashMap<Peer, TCPSessionMock>>>,
+        peers: Arc<Mutex<HashMap<Peer, TcpSession>>>,
         message_sender: Sender<(Peer, Message)>,
         tcp_receiver: Receiver<(Peer, Message)>,
     ) {
@@ -106,7 +106,7 @@ impl TcpHandler {
     // Send messages received from the StateMachine to the peers
     // recv() message_receiver, get TCPSession and call TCPSEssion.send
     fn tcp_sender(
-        peers: Arc<Mutex<HashMap<Peer, TCPSessionMock>>>,
+        peers: Arc<Mutex<HashMap<Peer, TcpSession>>>,
         tcp_receiver: Receiver<(Peer, Message)>,
     ) {
         while let Ok((peer, message)) = tcp_receiver.recv() {
@@ -124,7 +124,7 @@ impl TcpHandler {
     /// connections. A connection of this kind happens when a peer wants
     /// a file that we are seeding. The functionn accepts connections and
     /// insert the respective TcpSession into the Peers hashmap.
-    fn connection_listener(peers: Arc<Mutex<HashMap<Peer, TCPSessionMock>>>) {
+    fn connection_listener(peers: Arc<Mutex<HashMap<Peer, TcpSession>>>) {
         log::debug!("Listening for connections");
 
         // TODO: check the port
@@ -132,19 +132,12 @@ impl TcpHandler {
 
         for stream in tcp_listener.incoming() {
             let stream = stream.unwrap();
-            match stream.peer_addr().unwrap() {
-                SocketAddr::V4(address_v4) => {
-                    log::info!("Peer {} initiated a connection.", address_v4);
-                    let peer = Peer::from_socket_address(address_v4);
+            let address = stream.peer_addr().unwrap();
+            log::info!("Peer {} initiated a connection.", address);
+            let peer = Peer::from_socket_address(address);
 
-                    // let tcp_session = TCPSession::from_stream
-                    peers.lock().unwrap().insert(peer, unimplemented!());
-                }
-                _ => {
-                    warn!("Skipping client trying to use IPv6.");
-                    break;
-                }
-            };
+            // let tcp_session = TCPSession::from_stream
+            peers.lock().unwrap().insert(peer, unimplemented!());
         }
     }
 }

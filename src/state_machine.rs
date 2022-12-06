@@ -1,12 +1,16 @@
 use {
     crate::{
-        error::Error, http::Peer, http::TrackerRequest, pwp::Message,
-        pwp_communication::TrackerAddress, tcp::TcpSession, torrent::Torrent,
+        error::Error,
+        http::Peer,
+        http::{TrackerAddress, TrackerRequest},
+        pwp::Message,
+        tcp::TcpSession,
+        torrent::Torrent,
     },
     crossbeam_channel::{Receiver, Sender},
     std::{
         collections::HashMap,
-        net::{TcpListener, TcpStream},
+        net::TcpListener,
         path::PathBuf,
         sync::{Arc, Mutex},
         thread,

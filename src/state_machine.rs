@@ -107,9 +107,9 @@ impl TcpHandler {
     // recv() message_receiver, get TCPSession and call TCPSEssion.send
     fn tcp_sender(
         peers: Arc<Mutex<HashMap<Peer, TCPSessionMock>>>,
-        message_receiver: Receiver<(Peer, Message)>,
+        tcp_receiver: Receiver<(Peer, Message)>,
     ) {
-        while let Ok((peer, message)) = message_receiver.recv() {
+        while let Ok((peer, message)) = tcp_receiver.recv() {
             peers
                 .lock()
                 .unwrap()

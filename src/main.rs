@@ -13,6 +13,7 @@ use app::App;
 mod cli;
 mod http;
 mod pwp;
+pub use pwp::*;
 mod tcp;
 
 mod pwp_communication;

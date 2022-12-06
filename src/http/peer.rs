@@ -1,8 +1,8 @@
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Peer {
-    socket_address: SocketAddrV4,
+    socket_address: SocketAddr,
 }
 
 impl Peer {
@@ -11,11 +11,11 @@ impl Peer {
         let port = (chunk[4] as u16 * 256) + chunk[5] as u16;
 
         Peer {
-            socket_address: SocketAddrV4::new(ip, port),
+            socket_address: SocketAddr::new(IpAddr::V4(ip), port),
         }
     }
 
-    pub fn from_socket_address(socket_address: SocketAddrV4) -> Self {
+    pub fn from_socket_address(socket_address: SocketAddr) -> Self {
         Peer { socket_address }
     }
 

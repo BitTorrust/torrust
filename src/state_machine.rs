@@ -10,11 +10,6 @@ use {
     std::path::PathBuf,
 };
 
-const PEER_ID: [u8; 20] = [
-    0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
-    0xAA, 0xAA, 0xAA, 0xAD,
-];
-
 mod tcp_handler;
 use tcp_handler::TcpHandler;
 
@@ -27,6 +22,12 @@ pub struct StateMachine {
 }
 
 impl StateMachine {
+    pub const CLIENT_PORT: u16 = 6882;
+    pub const CLIENT_ID: [u8; 20] = [
+        0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+        0xAA, 0xAA, 0xAA, 0xAA, 0xAD,
+    ];
+
     pub fn new(torrent: Torrent, working_directory: &PathBuf) -> Self {
         let (message_sender, message_receiver) = crossbeam_channel::unbounded();
         let tcp_handler = TcpHandler::new(message_sender);
@@ -70,7 +71,8 @@ impl StateMachine {
         // TODO: read from disk/check integrity to see if we have the whole file or nothing.
         let left_to_download = torrent.total_length_in_bytes();
 
-        let tracker_request = TrackerRequest::from_torrent(torrent, PEER_ID, left_to_download);
+        let tracker_request =
+            TrackerRequest::from_torrent(torrent, Self::CLIENT_ID, left_to_download);
         let tracker_address = TrackerAddress::from_torrent(&self.torrent)?;
         log::debug!("Sending tracker request {:?}", tracker_request);
 

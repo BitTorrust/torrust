@@ -1,9 +1,9 @@
 use {
-    crate::{error::Error, http::Peer, pwp::Message, tcp::TcpSession},
+    crate::{error::Error, http::Peer, pwp::Message, state_machine::StateMachine, tcp::TcpSession},
     crossbeam_channel::{Receiver, Sender},
     std::{
         collections::HashMap,
-        net::TcpListener,
+        net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener},
         sync::{Arc, Mutex},
         thread,
         time::Duration,
@@ -98,8 +98,9 @@ impl TcpHandler {
     fn connection_listener(peers: Arc<Mutex<HashMap<Peer, TcpSession>>>) {
         log::info!("Thread ConnectionListener started.");
 
-        // TODO: check the port. We should use the same port we annouce to the tracker. It should be a constant somewhere.
-        let tcp_listener = TcpListener::bind("0.0.0.0:6882").unwrap();
+        let client_ip = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+        let socket_address = SocketAddr::new(client_ip, StateMachine::CLIENT_PORT);
+        let tcp_listener = TcpListener::bind(socket_address).unwrap();
 
         for stream in tcp_listener.incoming() {
             let stream = stream.unwrap();

@@ -10,6 +10,7 @@ pub mod user_case {
         tests::pwp::unittest::{path_build_to_pwp_message, read_bytes_from},
         BlockReaderWriter, Torrent,
     };
+    use core::panic;
     use std::{
         fs::{self, File},
         io::{self, Read},
@@ -29,7 +30,6 @@ pub mod user_case {
     ];
 
     const UPLOAD_FILES_FOLDER: &str = "samples/upload";
-    const DOWNLOAD_FILES_FOLDER: &str = "samples/download";
 
     /// Tracker [IP:127.0.0.1,port:6969]
     const OPENTRACKER_IP_ADDRESS: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -63,7 +63,7 @@ pub mod user_case {
             .spawn()
     }
 
-    #[ignore = "CI doesn't have a local network"]
+    #[ignore = "CI is not setup for integration test using network"]
     #[test]
     pub fn tcp_session_receive_handshake() {
         // Init local network
@@ -78,10 +78,8 @@ pub mod user_case {
         sleep(Duration::from_secs(5));
 
         // TCP connection
-        let seeder_peer = Peer::from_socket_address(SocketAddr::new(
-            IpAddr::V4(SEEDER_IP_ADDRESS),
-            SEEDER_TCP_DOWNLOAD_PORT,
-        ));
+        let seeder_peer =
+            Peer::from_socket_address(SocketAddr::new(IpAddr::V4(SEEDER_IP_ADDRESS), seeder_port));
         let mut tcp_session = match TcpSession::connect(seeder_peer) {
             Ok(session) => session,
             Err(_) => {
@@ -134,14 +132,9 @@ pub mod user_case {
         // End of test
         tracker_process_child.kill().unwrap();
         seeder_process_child.kill().unwrap();
-
-        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_download_file);
-        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_aria_file);
     }
 
-    #[ignore = "CI doesn't have a local network"]
+    #[ignore = "CI is not setup for integration test using network"]
     #[test]
     pub fn tcp_session_receive_bitfield() {
         // Init local network
@@ -238,14 +231,9 @@ pub mod user_case {
         // End of test
         tracker_process_child.kill().unwrap();
         seeder_process_child.kill().unwrap();
-
-        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_download_file);
-        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_aria_file);
     }
 
-    #[ignore = "CI doesn't have a local network"]
+    #[ignore = "CI is not setup for integration test using network"]
     #[test]
     pub fn tcp_session_receive_unchoke() {
         // Init local network
@@ -385,14 +373,9 @@ pub mod user_case {
         // End of test
         tracker_process_child.kill().unwrap();
         seeder_process_child.kill().unwrap();
-
-        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_download_file);
-        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_aria_file);
     }
 
-    #[ignore = "CI doesn't have a local network"]
+    #[ignore = "CI is not setup for integration test using network"]
     #[test]
     pub fn tcp_session_receive_piece() {
         // Init local network
@@ -580,10 +563,53 @@ pub mod user_case {
         // End of test
         tracker_process_child.kill().unwrap();
         seeder_process_child.kill().unwrap();
+    }
 
-        let seeder_download_file = format!("{}/{}", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_download_file);
-        let seeder_aria_file = format!("{}/{}.aria2", DOWNLOAD_FILES_FOLDER, filename_to_upload);
-        let _ = fs::remove_file(seeder_aria_file);
+    #[ignore = "CI is not setup for integration test using network"]
+    #[test]
+    pub fn tcp_session_read_empty_socket() {
+        // Init local network (tracker and seeder)
+        let filename_to_upload = "venon.jpg";
+        let torrent_filename_to_upload = format!("{}.torrent", filename_to_upload);
+        let mut tracker_process_child =
+            run_tracker().expect("failed to execute tracker process child");
+
+        let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 5;
+        let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
+            .expect("failed to execute seeder process child");
+        sleep(Duration::from_secs(5));
+
+        // TCP connection
+        let seeder_peer =
+            Peer::from_socket_address(SocketAddr::new(IpAddr::V4(SEEDER_IP_ADDRESS), seeder_port));
+        let mut tcp_session = match TcpSession::connect(seeder_peer) {
+            Ok(session) => session,
+            Err(_) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("cannot connect to seeder");
+            }
+        };
+
+        // Try to receive data when we don't expect data to be received
+        match tcp_session.receive() {
+            Ok(maybe_message) => match maybe_message {
+                Some(_) => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    panic!("no message should have been received")
+                }
+                None => {
+                    tracker_process_child.kill().unwrap();
+                    seeder_process_child.kill().unwrap();
+                    assert!(true)
+                }
+            },
+            Err(error) => {
+                tracker_process_child.kill().unwrap();
+                seeder_process_child.kill().unwrap();
+                panic!("{:?}", error);
+            }
+        };
     }
 }

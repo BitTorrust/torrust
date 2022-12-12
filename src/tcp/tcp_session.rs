@@ -15,12 +15,20 @@ use {
     },
 };
 
+#[derive(Debug)]
 pub struct TcpSession {
     peer: Peer,
     stream: TcpStream,
 }
 
 impl TcpSession {
+    pub fn from_stream(stream: TcpStream) -> Result<Self, Error> {
+        let address = stream.peer_addr().unwrap();
+        let peer = Peer::from_socket_address(address);
+
+        Ok(Self { peer, stream })
+    }
+
     pub fn connect(peer: Peer) -> Result<Self, Error> {
         let address = peer.socket_address();
         let stream = TcpStream::connect(address).map_err(|_| Error::FailedToConnectToPeer)?;

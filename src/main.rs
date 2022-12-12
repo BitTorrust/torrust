@@ -16,8 +16,7 @@ mod pwp;
 pub use pwp::*;
 mod tcp;
 
-mod pwp_communication;
-pub use pwp_communication::BitTorrentStateMachine;
+mod state_machine;
 
 #[cfg(test)]
 mod tests;

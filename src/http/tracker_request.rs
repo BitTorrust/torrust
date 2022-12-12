@@ -1,6 +1,5 @@
 use crate::{
-    http::{Event, TrackerResponse},
-    pwp_communication::TrackerAddress,
+    http::{Event, TrackerAddress, TrackerResponse},
     torrent::Torrent,
     Error,
 };
@@ -57,9 +56,12 @@ impl TrackerRequest {
         parsed_response
     }
 
-    pub fn from_torrent(torrent: &Torrent, peer_id: [u8; 20]) -> TrackerRequest {
+    pub fn from_torrent(
+        torrent: &Torrent,
+        peer_id: [u8; 20],
+        left_to_download: u32,
+    ) -> TrackerRequest {
         let info_hash = torrent.info_hash();
-        let left_to_download = torrent.total_length_in_bytes();
         let tracker_request = TrackerRequest::new(
             info_hash,
             peer_id,

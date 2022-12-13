@@ -12,3 +12,6 @@ pub mod file_management;
 
 #[cfg(test)]
 pub mod tcp;
+
+#[cfg(test)]
+pub mod state_machine;

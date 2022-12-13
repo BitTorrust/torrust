@@ -13,30 +13,34 @@ use {
 mod tcp_handler;
 use tcp_handler::TcpHandler;
 
+pub(crate) mod identity;
+use identity::generate_random_identity;
+
 #[derive(Debug)]
 pub struct StateMachine {
     message_receiver: Receiver<(Peer, Message)>,
     tcp_handler: TcpHandler,
     torrent: Torrent,
+    client_id: [u8; 20],
     // structure to store the state of each peer? HashMap<Peer, BitTorrentState>
 }
 
 impl StateMachine {
     pub const CLIENT_PORT: u16 = 6882;
-    pub const CLIENT_ID: [u8; 20] = [
-        0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
-        0xAA, 0xAA, 0xAA, 0xAA, 0xAD,
-    ];
 
     pub fn new(torrent: Torrent, working_directory: &PathBuf) -> Self {
         let (message_sender, message_receiver) = crossbeam_channel::unbounded();
         let tcp_handler = TcpHandler::new(message_sender);
-
         Self {
             message_receiver,
             tcp_handler,
             torrent,
+            client_id: generate_random_identity(),
         }
+    }
+
+    fn client_id(&self) -> [u8; 20] {
+        self.client_id
     }
 
     pub fn run(&self) {
@@ -72,7 +76,7 @@ impl StateMachine {
         let left_to_download = torrent.total_length_in_bytes();
 
         let tracker_request =
-            TrackerRequest::from_torrent(torrent, Self::CLIENT_ID, left_to_download);
+            TrackerRequest::from_torrent(torrent, self.client_id(), left_to_download);
         let tracker_address = TrackerAddress::from_torrent(&self.torrent)?;
         log::debug!("Sending tracker request {:?}", tracker_request);
 

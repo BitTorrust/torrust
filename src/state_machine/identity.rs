@@ -2,7 +2,7 @@ use rand::prelude::*;
 
 pub const CLIENT_VERSION_ID: &str = "-Tr0001-";
 
-// Generate a random peer id (using azureus-style : "-AB1234-...")
+/// Generate a random peer id (using azureus-style : "-AB1234-...")
 pub fn generate_random_identity() -> [u8; 20] {
     let mut version_information = CLIENT_VERSION_ID.chars();
     let mut id = [0 as u8; 20];

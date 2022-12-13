@@ -32,7 +32,9 @@ impl TcpSession {
     pub fn connect(peer: Peer) -> Result<Self, Error> {
         let address = peer.socket_address();
         let stream = TcpStream::connect(address).map_err(|_| Error::FailedToConnectToPeer)?;
-
+        stream
+            .set_nonblocking(false)
+            .map_err(|_| Error::FailedToSetSocketAsNonBlocking)?;
         Ok(Self { peer, stream })
     }
 
@@ -47,6 +49,7 @@ impl TcpSession {
     }
 
     pub fn listen() -> Result<TcpListener, Error> {
+        //TODO change hardcoded ip address
         let listener =
             TcpListener::bind("127.0.0.1:6882").map_err(|_| Error::FailedToCreateTcpListener)?;
         Ok(listener)
@@ -146,9 +149,14 @@ impl TcpSession {
         // check if it is a handshake
         // PWP message are all starting with a 4 bytes representing the message length
         let mut zero_to_third_read_bytes: [u8; 4] = [0; 4];
-        self.stream
-            .read(&mut zero_to_third_read_bytes)
-            .map_err(|_| Error::FailedToReadFromSocket)?;
+        let number_of_bytes_read = match self.stream.read(&mut zero_to_third_read_bytes) {
+            Ok(read_bytes) => read_bytes,
+            Err(_) => return Ok(None),
+        };
+
+        if number_of_bytes_read == 0 {
+            return Ok(None);
+        }
 
         // Keep alive (PWP protocol) handling
         if zero_to_third_read_bytes == [0, 0, 0, 0] {

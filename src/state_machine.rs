@@ -16,6 +16,8 @@ use tcp_handler::TcpHandler;
 pub(crate) mod identity;
 use identity::generate_random_identity;
 
+mod file_checker;
+
 #[derive(Debug)]
 pub struct StateMachine {
     message_receiver: Receiver<(Peer, Message)>,

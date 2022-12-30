@@ -17,6 +17,8 @@ pub struct Torrent {
     name: String,
     /// a 160-bit (20-byte)
     info_hash: [u8; 20],
+    /// The hash of each piece
+    piece_hashes: Vec<[u8; 20]>,
 }
 
 impl Torrent {
@@ -42,6 +44,10 @@ impl Torrent {
 
     pub fn info_hash(&self) -> [u8; 20] {
         self.info_hash.clone()
+    }
+
+    pub fn piece_hashes(&self) -> Vec<[u8; 20]> {
+        self.piece_hashes.clone()
     }
 
     pub fn decode_dict(&mut self, dict: &mut DictDecoder) -> Result<(), Error> {
@@ -94,7 +100,18 @@ impl Torrent {
                         _ => return Err(Error::BencodeObjectHasUnexpectedType),
                     }
                 }
-                _ => (),
+                "pieces" => match pair.1 {
+                    Object::Bytes(bytes) => {
+                        const HASH_LENGTH: usize = 20;
+
+                        bytes.chunks(HASH_LENGTH).for_each(|hash| {
+                            let hash: [u8; HASH_LENGTH] = hash.try_into().unwrap();
+                            self.piece_hashes.push(hash)
+                        });
+                    }
+                    _ => return Err(Error::BencodeObjectHasUnexpectedType),
+                },
+                other => log::warn!("Skipping field {} from torrent file.", other),
             }
         }
         Ok(())
@@ -120,6 +137,7 @@ impl Torrent {
             total_length_in_bytes: 0,
             name: String::from(""),
             info_hash: [0; 20],
+            piece_hashes: vec![],
         };
 
         let maybe_bencode_object = bencode_decoder

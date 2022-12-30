@@ -45,17 +45,12 @@ mod tests {
         let rounds = 5;
         let mut adaptative_wait = AdaptativeWait::new(rounds, Duration::from_millis(500));
 
-        for i in 0..rounds {
-            let begin = Instant::now();
-            adaptative_wait.wait();
-            let time_taken = begin.elapsed();
-
+        for _ in 0..rounds {
+            let time_taken = bench(&mut || adaptative_wait.wait());
             assert!(time_taken <= Duration::from_millis(50));
         }
 
-        let begin = Instant::now();
-        adaptative_wait.wait();
-        let time_taken = begin.elapsed();
+        let time_taken = bench(&mut || adaptative_wait.wait());
 
         assert!(time_taken >= Duration::from_millis(450));
         assert!(time_taken <= Duration::from_millis(550));
@@ -71,5 +66,11 @@ mod tests {
 
         adaptative_wait.reset();
         assert_eq!(adaptative_wait.remaining_rounds, rounds);
+    }
+
+    fn bench(f: &mut dyn FnMut()) -> Duration {
+        let begin = Instant::now();
+        f();
+        begin.elapsed()
     }
 }

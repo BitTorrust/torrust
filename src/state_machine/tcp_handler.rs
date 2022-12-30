@@ -29,7 +29,15 @@ impl TcpHandler {
         let peers = Arc::new(Mutex::new(HashMap::new()));
         let peers_ref = peers.clone();
 
-        thread::spawn(move || TcpHandler::run(peers_ref, message_sender.clone(), tcp_receiver));
+        let mut adaptative_wait = AdaptativeWait::new(64, Duration::from_millis(100));
+        thread::spawn(move || {
+            TcpHandler::run(
+                peers_ref,
+                message_sender.clone(),
+                tcp_receiver,
+                adaptative_wait,
+            )
+        });
 
         Self { peers, tcp_sender }
     }
@@ -54,6 +62,7 @@ impl TcpHandler {
         peers: Arc<Mutex<HashMap<Peer, TcpSession>>>,
         message_sender: Sender<(Peer, Message)>,
         tcp_receiver: Receiver<(Peer, Message)>,
+        mut wait_mechanism: impl Wait,
     ) {
         log::info!("Thread TcpHandler started.");
 
@@ -62,18 +71,16 @@ impl TcpHandler {
         let peers_ref = peers.clone();
         thread::spawn(move || TcpHandler::tcp_sender(peers_ref, tcp_receiver));
 
-        let mut adaptative_wait = AdaptativeWait::new(64, Duration::from_millis(100));
-
         loop {
             // Send messages received through TCP to the state machine
             for (peer, session) in peers.lock().unwrap().iter_mut() {
                 while let Some(message) = session.receive().unwrap() {
                     message_sender.send((*peer, message)).unwrap();
-                    adaptative_wait.reset();
+                    wait_mechanism.reset();
                 }
             }
 
-            adaptative_wait.wait();
+            wait_mechanism.wait();
         }
     }
 

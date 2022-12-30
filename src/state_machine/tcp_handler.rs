@@ -1,5 +1,12 @@
 use {
-    crate::{error::Error, http::Peer, pwp::Message, state_machine::StateMachine, tcp::TcpSession},
+    crate::{
+        adaptative_wait::AdaptativeWait,
+        error::Error,
+        http::Peer,
+        pwp::Message,
+        state_machine::{StateMachine, Wait},
+        tcp::TcpSession,
+    },
     crossbeam_channel::{Receiver, Sender},
     std::{
         collections::HashMap,
@@ -55,19 +62,18 @@ impl TcpHandler {
         let peers_ref = peers.clone();
         thread::spawn(move || TcpHandler::tcp_sender(peers_ref, tcp_receiver));
 
+        let mut adaptative_wait = AdaptativeWait::new(64, Duration::from_millis(100));
+
         loop {
             // Send messages received through TCP to the state machine
             for (peer, session) in peers.lock().unwrap().iter_mut() {
                 while let Some(message) = session.receive().unwrap() {
                     message_sender.send((*peer, message)).unwrap();
+                    adaptative_wait.reset();
                 }
             }
 
-            // TODO: create a smart wait mechanism (busy wait -> sleep). This is REALLY important,
-            // since this sleep limitates our download speed. My suggestion is to implement
-            // a smarter wait (maybe using busy waits, maybe using thread yields, maybe using sleeps
-            // after a threshold)
-            thread::sleep(Duration::from_millis(10));
+            adaptative_wait.wait();
         }
     }
 

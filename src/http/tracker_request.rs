@@ -1,5 +1,6 @@
 use crate::{
     http::{Event, TrackerAddress, TrackerResponse},
+    state_machine::StateMachine,
     torrent::Torrent,
     Error,
 };
@@ -65,7 +66,7 @@ impl TrackerRequest {
         let tracker_request = TrackerRequest::new(
             info_hash,
             peer_id,
-            6882,
+            StateMachine::CLIENT_PORT,
             0,
             0,
             left_to_download as usize,

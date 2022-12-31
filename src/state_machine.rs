@@ -110,6 +110,10 @@ impl StateMachine {
         let peers = self.peers_to_handshake();
 
         for peer in peers {
+            if peer.socket_address() == "127.0.0.1:6882" {
+                log::warn!("Skipping connection to ourselves.");
+                continue;
+            }
             //send handshake
             if let Ok(_) = self.connect(peer) {
                 let handshake = Handshake::new(self.torrent.info_hash(), self.client_id);

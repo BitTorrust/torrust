@@ -13,6 +13,9 @@ use {
 mod tcp_handler;
 use tcp_handler::TcpHandler;
 
+mod wait;
+pub use wait::Wait;
+
 pub(crate) mod identity;
 use identity::generate_random_identity;
 

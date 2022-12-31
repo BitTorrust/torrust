@@ -1,5 +1,12 @@
 use {
-    crate::{error::Error, http::Peer, pwp::Message, state_machine::StateMachine, tcp::TcpSession},
+    crate::{
+        adaptative_wait::AdaptativeWait,
+        error::Error,
+        http::Peer,
+        pwp::Message,
+        state_machine::{StateMachine, Wait},
+        tcp::TcpSession,
+    },
     crossbeam_channel::{Receiver, Sender},
     std::{
         collections::HashMap,
@@ -22,7 +29,15 @@ impl TcpHandler {
         let peers = Arc::new(Mutex::new(HashMap::new()));
         let peers_ref = peers.clone();
 
-        thread::spawn(move || TcpHandler::run(peers_ref, message_sender.clone(), tcp_receiver));
+        let mut adaptative_wait = AdaptativeWait::new(64, Duration::from_millis(100));
+        thread::spawn(move || {
+            TcpHandler::run(
+                peers_ref,
+                message_sender.clone(),
+                tcp_receiver,
+                adaptative_wait,
+            )
+        });
 
         Self { peers, tcp_sender }
     }
@@ -47,6 +62,7 @@ impl TcpHandler {
         peers: Arc<Mutex<HashMap<Peer, TcpSession>>>,
         message_sender: Sender<(Peer, Message)>,
         tcp_receiver: Receiver<(Peer, Message)>,
+        mut wait_mechanism: impl Wait,
     ) {
         log::info!("Thread TcpHandler started.");
 
@@ -60,14 +76,11 @@ impl TcpHandler {
             for (peer, session) in peers.lock().unwrap().iter_mut() {
                 while let Some(message) = session.receive().unwrap() {
                     message_sender.send((*peer, message)).unwrap();
+                    wait_mechanism.reset();
                 }
             }
 
-            // TODO: create a smart wait mechanism (busy wait -> sleep). This is REALLY important,
-            // since this sleep limitates our download speed. My suggestion is to implement
-            // a smarter wait (maybe using busy waits, maybe using thread yields, maybe using sleeps
-            // after a threshold)
-            thread::sleep(Duration::from_millis(10));
+            wait_mechanism.wait();
         }
     }
 

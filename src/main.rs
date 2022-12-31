@@ -18,6 +18,8 @@ mod tcp;
 
 mod state_machine;
 
+mod adaptative_wait;
+
 #[cfg(test)]
 mod tests;
 

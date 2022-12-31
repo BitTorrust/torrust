@@ -3,7 +3,7 @@ use {
         error::Error,
         http::Peer,
         http::{TrackerAddress, TrackerRequest},
-        pwp::Message,
+        pwp::{Handshake, Message},
         torrent::Torrent,
     },
     crossbeam_channel::Receiver,
@@ -11,6 +11,8 @@ use {
 };
 
 mod tcp_handler;
+use std::{collections::HashMap, hash::Hash};
+
 use tcp_handler::TcpHandler;
 
 mod wait;
@@ -25,7 +27,30 @@ pub struct StateMachine {
     tcp_handler: TcpHandler,
     torrent: Torrent,
     client_id: [u8; 20],
+    download_peers: HashMap<Peer, DownloadBitTorrentState>,
+    upload_peers: HashMap<Peer, UploadBitTorrentState>,
     // structure to store the state of each peer? HashMap<Peer, BitTorrentState>
+}
+
+#[derive(Debug, Clone)]
+
+enum UploadBitTorrentState {
+    //Upload states
+    WaitHandshake,
+    NotInterestingAndChoking,
+    InterestingAndChoking,
+    InterestingAndUnchoking,
+    Done,
+}
+
+#[derive(Debug, Clone)]
+enum DownloadBitTorrentState {
+    //Download states
+    Unconnected,
+    HandshakeSent,
+    NotInterestedAndChoked,
+    InterestedAndChoked,
+    InterestedAndUnchoked,
 }
 
 impl StateMachine {
@@ -39,6 +64,8 @@ impl StateMachine {
             tcp_handler,
             torrent,
             client_id: generate_random_identity(),
+            download_peers: HashMap::new(),
+            upload_peers: HashMap::new(),
         }
     }
 
@@ -46,13 +73,77 @@ impl StateMachine {
         self.client_id
     }
 
-    pub fn run(&self) {
-        self.send_tracker_request().unwrap();
+    pub fn run(&mut self) {
+        self.fill_peer_list();
+
+        self.send_handshake();
+
+        //1. Handle message function (peer, message)
+        //2. Got it.
 
         while let Ok((peer, message)) = self.message_receiver.recv() {
             log::debug!("Received message {:?} from {:?}", message, peer);
             // TODO: match and handle message
+
+            // if self.download_peers.contains_key(&peer) {
+            //     let peer_state = self.download_peers.get(&peer);
+
+            //     match peer_state {
+            //         Some(peer_state) => match peer_state {
+            //             DownloadBitTorrentState::HandshakeSent => {
+            //                 self.handshake_sent(peer, message)
+            //             }
+            //             _ => unimplemented!(),
+            //         },
+            //         None => {
+            //             log::info!("Tracker did not return any peers");
+            //             // return Err(Error::NoPeersAvailable);
+            //             // ();
+            //         }
+            //     }
+            // }
         }
+    }
+
+    //TODO : NOT send handshake to ourselves
+    fn send_handshake(&mut self) {
+        let peers = self.peers_to_handshake();
+
+        for peer in peers {
+            //send handshake
+            if let Ok(_) = self.connect(peer) {
+                let handshake = Handshake::new(self.torrent.info_hash(), self.client_id);
+                self.send_message(peer.clone(), Message::Handshake(handshake));
+
+                //update peer state
+                self.download_peers
+                    .insert(peer, DownloadBitTorrentState::HandshakeSent);
+
+                log::debug!("Handshake sent to peer {:?}", peer);
+            }
+        }
+    }
+
+    fn fill_peer_list(&mut self) {
+        while let Err(_) = self.send_tracker_request() {
+            self.send_tracker_request();
+        }
+    }
+
+    fn peers_to_handshake(&self) -> Vec<Peer> {
+        let mut peers = Vec::new();
+        for (peer, download_state) in self.download_peers.iter() {
+            match download_state {
+                DownloadBitTorrentState::Unconnected => peers.push(*peer),
+                _ => (),
+            }
+        }
+
+        peers
+    }
+
+    fn handshake_sent(&self, peer: Peer, message: Message) {
+        log::debug!(" Feliz Navidad, pude hacer entrar en un handshake sent");
     }
 
     /// Sends a message to an already connected peer.
@@ -65,7 +156,7 @@ impl StateMachine {
         self.tcp_handler.connect(peer)
     }
 
-    fn send_tracker_request(&self) -> Result<(), Error> {
+    fn send_tracker_request(&mut self) -> Result<(), Error> {
         // I think for now it's ok to assume that we either have the whole file or
         // nothing at all when the client starts. We should read from disk to check what
         // is the case and fill `left_to_download` with 0 or torrent_size. Based on that,
@@ -88,6 +179,21 @@ impl StateMachine {
 
         // TODO: decide what to do with the tracker response, based on whether or not we'll
         // need to leech.
+
+        // en assumant leecher maintenant
+        match response.peers() {
+            Some(peers) => {
+                for peer in peers {
+                    self.download_peers
+                        .insert(*peer, DownloadBitTorrentState::Unconnected);
+                }
+            }
+
+            None => {
+                log::info!("Tracker did not return any peers");
+                return Err(Error::NoPeersAvailable);
+            }
+        }
 
         Ok(())
     }

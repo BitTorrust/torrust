@@ -33,7 +33,7 @@ impl TcpSession {
         let address = peer.socket_address();
         let stream = TcpStream::connect(address).map_err(|_| Error::FailedToConnectToPeer)?;
         stream
-            .set_nonblocking(false)
+            .set_nonblocking(true)
             .map_err(|_| Error::FailedToSetSocketAsNonBlocking)?;
         Ok(Self { peer, stream })
     }
@@ -144,7 +144,7 @@ impl TcpSession {
     }
 
     /// Write the received bytes in the buffer
-    /// Returns the number of bytes received
+    /// Returns the received BitTorrent message or None (if there is no data in the buffer)
     pub fn receive(&mut self) -> Result<Option<Message>, Error> {
         // check if it is a handshake
         // PWP message are all starting with a 4 bytes representing the message length

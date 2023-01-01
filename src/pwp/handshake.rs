@@ -21,7 +21,9 @@ pub struct Handshake {
 }
 
 impl Handshake {
-    pub const HANDSHAKE_MIN_MESSAGE_SIZE: usize = 49; // without pstr taken into account
+    pub const HANDSHAKE_MESSAGE_LENGTH_FIELD_SIZE: usize = 1;
+    pub const HANDSHAKE_MIN_MESSAGE_SIZE: usize =
+        Handshake::HANDSHAKE_MESSAGE_LENGTH_FIELD_SIZE + 8 + 20 + 20; // without pstr taken into account
     pub const BITTORRENT_VERSION_1_PROTOCOL_NAME: &'static str = "BitTorrent protocol";
     pub const BITTORRENT_VERSION_1_PROTOCOL_NAME_LENGTH: u8 =
         Handshake::BITTORRENT_VERSION_1_PROTOCOL_NAME.len() as u8;

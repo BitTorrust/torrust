@@ -1,6 +1,5 @@
 use {
-    crate::file_management::BlockReaderWriter,
-    crate::Torrent,
+    crate::{file_management::BlockReaderWriter, torrent, Torrent},
     bit_vec::BitVec,
     sha1::{Digest, Sha1},
     std::path::Path,
@@ -22,12 +21,7 @@ fn read_pieces_from_disk(torrent: &Torrent, working_dir: &Path) -> Vec<Vec<u8>> 
 
     let reader_writer = BlockReaderWriter::new(&filepath, piece_length, total_length).unwrap();
     let piece_length = piece_length as usize;
-    let total_pieces = total_length / piece_length
-        + if total_length % piece_length == 0 {
-            0
-        } else {
-            1
-        };
+    let total_pieces = torrent::div_ceil(total_length as u32, piece_length as u32);
 
     let blocks_per_piece = piece_length / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE;
     let mut pieces = Vec::new();

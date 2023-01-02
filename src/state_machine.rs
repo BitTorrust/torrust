@@ -4,8 +4,8 @@ use {
         file_management::local_bitfield,
         http::Peer,
         http::{TrackerAddress, TrackerRequest},
-        pwp::{Handshake, Message, Interested, Request},
-        torrent::{self,Torrent},
+        pwp::{Handshake, Interested, Message, Request},
+        torrent::{self, Torrent},
     },
     crossbeam_channel::Receiver,
     std::path::PathBuf,
@@ -70,11 +70,12 @@ impl StateMachine {
         let tcp_handler = TcpHandler::new(message_sender);
         let bitfield = local_bitfield(&torrent, working_directory);
         let bitfield_length = bitfield.len();
-        
+
         let filename = working_directory.join(torrent.name());
         let piece_length = torrent.piece_length_in_bytes();
         let file_size = torrent.total_length_in_bytes();
-        let block_reader_writer = BlockReaderWriter::new(&filename, piece_length, file_size as usize).unwrap();
+        let block_reader_writer =
+            BlockReaderWriter::new(&filename, piece_length, file_size as usize).unwrap();
 
         Self {
             message_receiver,
@@ -100,26 +101,28 @@ impl StateMachine {
         self.send_handshake();
 
         loop {
-            let maybe_message = self.message_receiver.recv_timeout(Duration::from_millis(10));
-            
+            let maybe_message = self
+                .message_receiver
+                .recv_timeout(Duration::from_millis(10));
+
             if let Ok((peer, message)) = maybe_message {
                 log::debug!("Received message {:?} from {:?}", message, peer);
-                self.handle_messsage(peer, message)  
+                self.handle_messsage(peer, message)
             }
-            
+
             self.handle_current_downloads();
             self.is_download_finished();
 
             if self.is_download_finished() {
                 //TODO: stop the other thread
-                break;   
+                break;
             }
         }
-
     }
-    
+
     fn is_download_finished(&self) -> bool {
-        self.bitfield.iter().filter(|piece| *piece).count() == self.torrent.number_of_pieces() as usize
+        self.bitfield.iter().filter(|piece| *piece).count()
+            == self.torrent.number_of_pieces() as usize
     }
 
     fn handle_messsage(&mut self, peer: Peer, message: Message) {
@@ -143,12 +146,13 @@ impl StateMachine {
     }
 
     fn handle_current_downloads(&mut self) {
-        self.download_peers.clone().iter().for_each(|(peer, state)| {
-            match state {
+        self.download_peers
+            .clone()
+            .iter()
+            .for_each(|(peer, state)| match state {
                 DownloadBitTorrentState::InterestedAndUnchoked => self.request_pieces(peer.clone()),
-                _ => ()
-            }
-        })
+                _ => (),
+            })
     }
     // For multiple peers
     // Resume download (check my bitfield)
@@ -165,10 +169,8 @@ impl StateMachine {
             Message::Bitfield(message) => {
                 log::debug!("Bitfield message received from peer {:?}", peer);
                 self.peers_bitfield.insert(peer,message.bitfield().clone());
-                
                 if self.peers_bitfield.len() == self.download_peers.len() {
                     log::info!("All bitfields received");
-
                     self.download_peers.values_mut().for_each(|v| *v = DownloadBitTorrentState::NotInterestedAndChoked);
                     self.send_interested_message();
                 } else {
@@ -184,75 +186,104 @@ impl StateMachine {
         match message {
             Message::Unchoke(message) => {
                 log::info!("Unchoke message received from peer {:?}", peer);
-                self.download_peers.insert(peer, DownloadBitTorrentState::InterestedAndUnchoked);
-            },
-            _ => log::warn!("Unexpected message from peer {:?}, waiting for Unchoke message", peer)
+                self.download_peers
+                    .insert(peer, DownloadBitTorrentState::InterestedAndUnchoked);
+            }
+            _ => log::warn!(
+                "Unexpected message from peer {:?}, waiting for Unchoke message",
+                peer
+            ),
         }
     }
-
 
     fn request_pieces(&mut self, peer: Peer) {
         let mut peer_bitfield = self.peers_bitfield.get(&peer).unwrap();
         let interesting_pieces = self.interesting_pieces(peer_bitfield.clone());
         let mut requested_pieces = 0;
 
-        interesting_pieces.iter().enumerate().filter(|(piece_index, value)| *value).for_each(|(piece_index,_)| {
-            if let Some(false) = self.requested_pieces.get(piece_index) {
-                if requested_pieces >= 1 {
-                    return;
+        interesting_pieces
+            .iter()
+            .enumerate()
+            .filter(|(piece_index, value)| *value)
+            .for_each(|(piece_index, _)| {
+                if let Some(false) = self.requested_pieces.get(piece_index) {
+                    if requested_pieces >= 1 {
+                        return;
+                    }
+
+                    let blocks = torrent::div_ceil(
+                        self.torrent.piece_length_in_bytes(),
+                        BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+                    );
+
+                    for block in 0..blocks {
+                        let is_last_piece =
+                            piece_index as u32 == (self.torrent.number_of_pieces() - 1);
+                        let is_last_block = block == blocks - 1;
+                        let length = if is_last_piece && is_last_block {
+                            self.torrent.total_length_in_bytes()
+                                % BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+                        } else {
+                            BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+                        };
+
+                        let request = Request::new(
+                            piece_index as u32,
+                            block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+                            length,
+                        );
+                        self.send_message(peer.clone(), Message::Request(request));
+                        thread::sleep(Duration::from_millis(30));
+                        self.requested_pieces.set(piece_index, true);
+                    }
+                    requested_pieces += 1;
                 }
-
-                let blocks = torrent::div_ceil(self.torrent.piece_length_in_bytes(), BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32);
-
-                for block in 0..blocks {
-                    let is_last_piece = piece_index as u32 == (self.torrent.number_of_pieces() - 1);
-                    let is_last_block = block == blocks - 1;
-                    let length = if is_last_piece && is_last_block {
-                        self.torrent.total_length_in_bytes() % BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
-                    } else {
-                        BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
-                    };
-
-                    let request = Request::new(piece_index as u32, block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32, length);
-                    self.send_message(peer.clone(), Message::Request(request));
-                    thread::sleep(Duration::from_millis(30));
-                    self.requested_pieces.set(piece_index, true);
-                }
-                requested_pieces +=1;
-            }
-        });
+            });
     }
 
     fn save_piece(&mut self, message: Message) {
         match message {
             Message::Piece(piece) => {
-                self.block_reader_writer.write(piece.piece_index(), piece.begin_offset_of_piece(), piece.data()).unwrap();
+                self.block_reader_writer
+                    .write(
+                        piece.piece_index(),
+                        piece.begin_offset_of_piece(),
+                        piece.data(),
+                    )
+                    .unwrap();
                 //TODO set bit only when we have all the blocks of one piece.
                 if let Some(blocks) = self.blocks_by_piece.get_mut(&piece.piece_index()) {
                     *blocks = *blocks + 1;
-                    if *blocks == self.torrent.piece_length_in_bytes() as usize / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize - 1 {
+                    if *blocks
+                        == self.torrent.piece_length_in_bytes() as usize
+                            / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
+                            - 1
+                    {
                         self.bitfield.set(piece.piece_index() as usize, true);
-                    } 
+                    }
                 } else {
                     self.blocks_by_piece.insert(piece.piece_index(), 0);
                 }
-            },
-            _ => log::warn!("Unexpected message, waiting for piece.")
+            }
+            _ => log::warn!("Unexpected message, waiting for piece."),
         }
     }
 
     fn send_interested_message(&mut self) {
-        self.peers_bitfield.clone().into_iter().for_each(|(peer, peer_bitfield)| {
-            let interesting_pieces = self.interesting_pieces(peer_bitfield);
+        self.peers_bitfield
+            .clone()
+            .into_iter()
+            .for_each(|(peer, peer_bitfield)| {
+                let interesting_pieces = self.interesting_pieces(peer_bitfield);
 
-            if interesting_pieces.any() {
-                let interested = Interested::new();
-                self.send_message(peer.clone(), Message::Interested(interested));
-                log::info!("Interested message sent to {:?}", peer);
-                self.download_peers.insert(peer, DownloadBitTorrentState::InterestedAndChoked);
-            }
-        })
-
+                if interesting_pieces.any() {
+                    let interested = Interested::new();
+                    self.send_message(peer.clone(), Message::Interested(interested));
+                    log::info!("Interested message sent to {:?}", peer);
+                    self.download_peers
+                        .insert(peer, DownloadBitTorrentState::InterestedAndChoked);
+                }
+            })
     }
     fn interesting_pieces(&self, mut peer_bitfield: BitVec) -> BitVec {
         let mut local_bitfield = self.bitfield.clone();

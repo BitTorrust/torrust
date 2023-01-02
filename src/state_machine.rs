@@ -154,11 +154,7 @@ impl StateMachine {
                 _ => (),
             })
     }
-    // For multiple peers
-    // Resume download (check my bitfield)
-    // Compare local bitfield with peer bitfield
-    // => envío un interested y guardo cuales son las piezas que me interesan de él
-    // => no envio nada y quedo en notInterested.
+
     fn handshake_sent(&mut self, peer: Peer, message: Message) {
         log::debug!("Handshake sent state!");
 
@@ -251,7 +247,6 @@ impl StateMachine {
                         piece.data(),
                     )
                     .unwrap();
-                //TODO set bit only when we have all the blocks of one piece.
                 if let Some(blocks) = self.blocks_by_piece.get_mut(&piece.piece_index()) {
                     *blocks = *blocks + 1;
                     if *blocks

@@ -9,3 +9,5 @@ PEER_BITTORRENT_DOWNLOAD_PORT=$1    # given port as the first argument
 
 opentracker -i $OPENTRACKER_IP_ADDRESS -p $OPENTRACKER_PORT & \
 aria2c -V -d $UPLOAD_FOLDER $UPLOAD_TORRENT_FILE --listen-port=$PEER_BITTORRENT_DOWNLOAD_PORT
+
+pkill opentracker

@@ -6,7 +6,7 @@ use {
         path::Path,
     },
 };
-
+#[derive(Debug)]
 pub struct BlockReaderWriter {
     piece_length: u32,
     file_size: usize,

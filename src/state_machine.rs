@@ -5,7 +5,7 @@ use {
         http::Peer,
         http::{TrackerAddress, TrackerRequest},
         pwp::{Handshake, Message, Interested, Request},
-        torrent::Torrent,
+        torrent::{self,Torrent},
     },
     crossbeam_channel::Receiver,
     std::path::PathBuf,
@@ -24,7 +24,7 @@ pub use wait::Wait;
 pub(crate) mod identity;
 use identity::generate_random_identity;
 
-use crate::Bitfield;
+use crate::{Bitfield, BlockReaderWriter};
 
 #[derive(Debug)]
 pub struct StateMachine {
@@ -35,7 +35,10 @@ pub struct StateMachine {
     download_peers: HashMap<Peer, DownloadBitTorrentState>,
     peers_bitfield: HashMap<Peer, BitVec>,
     upload_peers: HashMap<Peer, UploadBitTorrentState>,
-    bitfield: BitVec, // structure to store the state of each peer? HashMap<Peer, BitTorrentState>
+    bitfield: BitVec,
+    requested_pieces: BitVec,
+    block_reader_writer: BlockReaderWriter,
+    blocks_by_piece: HashMap<u32, usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +69,13 @@ impl StateMachine {
         let (message_sender, message_receiver) = crossbeam_channel::unbounded();
         let tcp_handler = TcpHandler::new(message_sender);
         let bitfield = local_bitfield(&torrent, working_directory);
+        let bitfield_length = bitfield.len();
+        
+        let filename = working_directory.join(torrent.name());
+        let piece_length = torrent.piece_length_in_bytes();
+        let file_size = torrent.total_length_in_bytes();
+        let block_reader_writer = BlockReaderWriter::new(&filename, piece_length, file_size as usize).unwrap();
+
         Self {
             message_receiver,
             tcp_handler,
@@ -75,6 +85,9 @@ impl StateMachine {
             peers_bitfield: HashMap::new(),
             upload_peers: HashMap::new(),
             bitfield,
+            requested_pieces: BitVec::from_elem(bitfield_length, false),
+            block_reader_writer,
+            blocks_by_piece: HashMap::new(),
         }
     }
 
@@ -95,8 +108,18 @@ impl StateMachine {
             }
             
             self.handle_current_downloads();
+            self.is_download_finished();
+
+            if self.is_download_finished() {
+                //TODO: stop the other thread
+                break;   
+            }
         }
 
+    }
+    
+    fn is_download_finished(&self) -> bool {
+        self.bitfield.iter().filter(|piece| *piece).count() == self.torrent.number_of_pieces() as usize
     }
 
     fn handle_messsage(&mut self, peer: Peer, message: Message) {
@@ -110,6 +133,7 @@ impl StateMachine {
             Some(peer_state) => match peer_state {
                 DownloadBitTorrentState::HandshakeSent => self.handshake_sent(peer, message),
                 DownloadBitTorrentState::InterestedAndChoked => self.handle_unchoke(peer, message),
+                DownloadBitTorrentState::InterestedAndUnchoked => self.save_piece(message),
                 _ => unimplemented!(),
             },
             None => {
@@ -118,8 +142,8 @@ impl StateMachine {
         }
     }
 
-    fn handle_current_downloads(&self) {
-        self.download_peers.iter().for_each(|(peer, state)| {
+    fn handle_current_downloads(&mut self) {
+        self.download_peers.clone().iter().for_each(|(peer, state)| {
             match state {
                 DownloadBitTorrentState::InterestedAndUnchoked => self.request_pieces(peer.clone()),
                 _ => ()
@@ -166,19 +190,55 @@ impl StateMachine {
         }
     }
 
-    fn request_pieces(&self, peer: Peer) {
+
+    fn request_pieces(&mut self, peer: Peer) {
         let mut peer_bitfield = self.peers_bitfield.get(&peer).unwrap();
         let interesting_pieces = self.interesting_pieces(peer_bitfield.clone());
+        let mut requested_pieces = 0;
 
         interesting_pieces.iter().enumerate().filter(|(piece_index, value)| *value).for_each(|(piece_index,_)| {
+            if let Some(false) = self.requested_pieces.get(piece_index) {
+                if requested_pieces >= 1 {
+                    return;
+                }
 
-            let request = Request::new(piece_index as u32, 0, self.torrent.piece_length_in_bytes());
-            self.send_message(peer.clone(), Message::Request(request));
-            thread::sleep(Duration::from_millis(100));
+                let blocks = torrent::div_ceil(self.torrent.piece_length_in_bytes(), BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32);
 
-        })
+                for block in 0..blocks {
+                    let is_last_piece = piece_index as u32 == (self.torrent.number_of_pieces() - 1);
+                    let is_last_block = block == blocks - 1;
+                    let length = if is_last_piece && is_last_block {
+                        self.torrent.total_length_in_bytes() % BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+                    } else {
+                        BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+                    };
 
+                    let request = Request::new(piece_index as u32, block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32, length);
+                    self.send_message(peer.clone(), Message::Request(request));
+                    thread::sleep(Duration::from_millis(30));
+                    self.requested_pieces.set(piece_index, true);
+                }
+                requested_pieces +=1;
+            }
+        });
+    }
 
+    fn save_piece(&mut self, message: Message) {
+        match message {
+            Message::Piece(piece) => {
+                self.block_reader_writer.write(piece.piece_index(), piece.begin_offset_of_piece(), piece.data()).unwrap();
+                //TODO set bit only when we have all the blocks of one piece.
+                if let Some(blocks) = self.blocks_by_piece.get_mut(&piece.piece_index()) {
+                    *blocks = *blocks + 1;
+                    if *blocks == self.torrent.piece_length_in_bytes() as usize / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize - 1 {
+                        self.bitfield.set(piece.piece_index() as usize, true);
+                    } 
+                } else {
+                    self.blocks_by_piece.insert(piece.piece_index(), 0);
+                }
+            },
+            _ => log::warn!("Unexpected message, waiting for piece.")
+        }
     }
 
     fn send_interested_message(&mut self) {

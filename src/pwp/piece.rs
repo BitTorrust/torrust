@@ -1,7 +1,6 @@
 use crate::pwp::{from_bytes, FromBytes, IntoBytes, MandatoryBitTorrentMessageFields, MessageType};
 use crate::Error;
 
-#[derive(Debug)]
 pub struct Piece {
     message_length: u32,
     message_type: u8,
@@ -11,6 +10,17 @@ pub struct Piece {
     begin_offset_of_piece: u32,
     /// block of data, which is a subset of the piece specified by index
     data: Vec<u8>,
+}
+
+use std::fmt;
+
+impl fmt::Debug for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point")
+            .field("piece_index", &self.piece_index)
+            .field("begin_offset_of_piece", &self.begin_offset_of_piece)
+            .finish()
+    }
 }
 
 impl Piece {

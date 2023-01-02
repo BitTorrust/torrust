@@ -24,6 +24,8 @@ pub enum Error {
     FailedToDecodeBencodeData,
     TrackerConnectionNotPossible,
 
+    // State machine errors
+    NoPeersAvailable,
     // Handshake message error
     FailedToParseBitTorrentHandshakeProtocolNameField,
     FailedToParseBitTorrentHandshakeReservedField,

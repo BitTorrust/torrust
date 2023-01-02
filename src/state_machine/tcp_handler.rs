@@ -73,10 +73,11 @@ impl TcpHandler {
 
         loop {
             // Send messages received through TCP to the state machine
-            for (peer, session) in peers.lock().unwrap().iter_mut() {
-                while let Some(message) = session.receive().unwrap() {
-                    message_sender.send((*peer, message)).unwrap();
-                    wait_mechanism.reset();
+            if let Ok(ref mut peers) = peers.try_lock() {
+                for (peer, ref mut session) in peers.iter_mut() {
+                    while let Some(message) = session.receive().unwrap() {
+                        message_sender.send((*peer, message)).unwrap();
+                    }
                 }
             }
 

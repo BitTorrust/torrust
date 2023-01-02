@@ -9,20 +9,20 @@ impl App {
     pub fn run() -> Result<(), Error> {
         let args = Args::parse();
         if args.debug() {
-            Self::init_logger();
+            Self::init_logger(LevelFilter::Debug);
+        } else if args.info() {
+            Self::init_logger(LevelFilter::Info);
         }
 
         let torrent = Torrent::from_file(args.torrent_file())?;
         let directory = args.working_directory();
-        StateMachine::new(torrent, directory).run();
+        let mock_peers = args.mock();
+        StateMachine::new(torrent, directory, mock_peers).run();
 
         Ok(())
     }
 
-    fn init_logger() {
-        SimpleLogger::new()
-            .with_level(LevelFilter::Debug)
-            .init()
-            .unwrap();
+    fn init_logger(level: LevelFilter) {
+        SimpleLogger::new().with_level(level).init().unwrap();
     }
 }

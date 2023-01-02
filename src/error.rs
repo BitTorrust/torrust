@@ -50,7 +50,7 @@ pub enum Error {
     // TCP error
     FailedToConnectToPeer,
     TcpSessionDoesNotExist,
-    FailedToParseReceivedBitfieldLength,
+    FailedToParseLengthFieldSize,
     FailedToParseReceivedPieceLength,
     FailedToReadFromSocket,
     FailedToCreateTcpListener,

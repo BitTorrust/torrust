@@ -33,7 +33,7 @@ impl TcpSession {
         let address = peer.socket_address();
         let stream = TcpStream::connect(address).map_err(|_| Error::FailedToConnectToPeer)?;
         stream
-            .set_nonblocking(false)
+            .set_nonblocking(true)
             .map_err(|_| Error::FailedToSetSocketAsNonBlocking)?;
         Ok(Self { peer, stream })
     }
@@ -64,96 +64,176 @@ impl TcpSession {
         self.stream().write(&(bittorrent_message.into_bytes()))
     }
 
-    fn parse_bitfield_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
-        let remaining_bytes_to_read_length = u32::from_be_bytes(
-            bytes[0..4]
-                .try_into()
-                .map_err(|_| Error::FailedToParseReceivedBitfieldLength)?,
-        ) - 1;
-        let mut remaining_bytes_to_read = Vec::new();
-        remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);
-
+    fn parse_message_length(&self, length_field_size: usize) -> Result<u32, Error> {
+        let mut length_bytes = Vec::new();
+        length_bytes.resize(length_field_size, 0);
         self.stream()
-            .read(&mut remaining_bytes_to_read)
+            .peek(&mut length_bytes)
             .map_err(|_| Error::FailedToReadFromSocket)?;
-        bytes.extend_from_slice(&remaining_bytes_to_read);
-        match Bitfield::from_bytes(&bytes) {
+        let length = u32::from_be_bytes(
+            length_bytes[0..length_field_size]
+                .try_into()
+                .map_err(|_| Error::FailedToParseLengthFieldSize)?,
+        );
+        Ok(length)
+    }
+
+    fn read_buffer(&self, size: usize) -> Result<Vec<u8>, Error> {
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.resize(size as usize, 0);
+        self.stream()
+            .read(&mut bytes)
+            .map_err(|_| Error::FailedToReadFromSocket)?;
+        Ok(bytes)
+    }
+
+    fn parse_bitfield_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read from buffer
+        let variable_length =
+            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
+        let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE
+            + MessageType::Bitfield.base_length()
+            + variable_length;
+
+        // Read the entire message from the buffer
+        let bitfield_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Bitfield message from bytes
+        match Bitfield::from_bytes(&bitfield_bytes) {
             Ok(bitfield_and_size) => Ok(Some(Message::Bitfield(bitfield_and_size.0))),
             Err(error) => Err(error),
         }
     }
 
-    fn parse_have_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
-        let mut remaining_bytes_to_read: [u8; 4] = [0; 4];
-        self.stream()
-            .read(&mut remaining_bytes_to_read)
-            .map_err(|_| Error::FailedToReadFromSocket)?;
-        bytes.extend_from_slice(&remaining_bytes_to_read);
-        match Have::from_bytes(&bytes) {
+    fn parse_have_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length = 4 + MessageType::Have.base_length();
+
+        // Read the entire message from the buffer
+        let have_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Have message from bytes
+        match Have::from_bytes(&have_bytes) {
             Ok(have_and_size) => Ok(Some(Message::Have(have_and_size.0))),
             Err(error) => Err(error),
         }
     }
 
-    fn parse_request_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
-        let mut remaining_bytes_to_read: [u8; 12] = [0; 3 * 4];
-        self.stream()
-            .read(&mut remaining_bytes_to_read)
-            .map_err(|_| Error::FailedToReadFromSocket)?;
-        bytes.extend_from_slice(&remaining_bytes_to_read);
-        match Request::from_bytes(&bytes) {
+    fn parse_request_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length =
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Request.base_length();
+
+        // Read the entire message from the buffer
+        let request_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Request message from bytes
+        match Request::from_bytes(&request_bytes) {
             Ok(request_and_size) => Ok(Some(Message::Request(request_and_size.0))),
             Err(error) => Err(error),
         }
     }
 
-    fn parse_piece_message(&self, bytes: &mut Vec<u8>) -> Result<Option<Message>, Error> {
-        let remaining_bytes_to_read_length = u32::from_be_bytes(
-            bytes[0..4]
-                .try_into()
-                .map_err(|_| Error::FailedToParseReceivedPieceLength)?,
-        ) - 1;
+    fn parse_piece_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read from buffer
+        let variable_length =
+            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
+        let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + variable_length;
 
-        let mut remaining_bytes_to_read = Vec::new();
-        remaining_bytes_to_read.resize(remaining_bytes_to_read_length as usize, 0);
+        // Read the entire message from the buffer
+        let piece_bytes = self.read_buffer(message_length as usize)?;
 
-        self.stream()
-            .read(&mut remaining_bytes_to_read)
-            .map_err(|_| Error::FailedToReadFromSocket)?;
-        bytes.extend_from_slice(&remaining_bytes_to_read);
-        match Piece::from_bytes(&bytes) {
+        // Create Piece message from bytes
+        match Piece::from_bytes(&piece_bytes) {
             Ok(piece_and_size) => Ok(Some(Message::Piece(piece_and_size.0))),
             Err(error) => Err(error),
         }
     }
 
-    fn parse_message(
-        &self,
-        message: MessageType,
-        bytes: &mut Vec<u8>,
-    ) -> Result<Option<Message>, Error> {
+    fn parse_handshake_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length = Handshake::HANDSHAKE_VERSION_1_MESSAGE_LENGTH;
+
+        // Read the entire message from the buffer
+        let handshake_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Handshake message from bytes
+        let handshake = match Handshake::from_bytes(&handshake_bytes) {
+            Ok(handshake_and_size) => handshake_and_size.0,
+            Err(error) => return Err(error),
+        };
+        Ok(Some(Message::Handshake(handshake)))
+    }
+
+    fn parse_unchoke_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length =
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Unchoke.base_length();
+
+        // Read the entire message from the buffer
+        let unchoke_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Unchoke message from bytes
+        match Unchoke::from_bytes(&unchoke_bytes) {
+            Ok(unchoke_and_size) => Ok(Some(Message::Unchoke(unchoke_and_size.0))),
+            Err(error) => return Err(error),
+        }
+    }
+
+    fn parse_interested_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length =
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Interested.base_length();
+
+        // Read the entire message from the buffer
+        let interested_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Interested message from bytes
+        match Interested::from_bytes(&interested_bytes) {
+            Ok(interested_and_size) => Ok(Some(Message::Interested(interested_and_size.0))),
+            Err(error) => return Err(error),
+        }
+    }
+
+    fn parse_not_interested_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length =
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::NotInterested.base_length();
+
+        // Read the entire message from the buffer
+        let not_interested_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Interested message from bytes
+        match NotInterested::from_bytes(&not_interested_bytes) {
+            Ok(not_interested_and_size) => {
+                Ok(Some(Message::NotInterested(not_interested_and_size.0)))
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    fn parse_message(&self, message: MessageType) -> Result<Option<Message>, Error> {
         match message {
-            MessageType::Bitfield => self.parse_bitfield_message(bytes),
-            MessageType::Unchoke => Ok(Some(Message::Unchoke(Unchoke::new()))),
-            MessageType::Interested => Ok(Some(Message::Interested(Interested::new()))),
-            MessageType::NotInterested => Ok(Some(Message::NotInterested(NotInterested::new()))),
-            MessageType::Have => self.parse_have_message(bytes),
-            MessageType::Request => self.parse_request_message(bytes),
-            MessageType::Piece => self.parse_piece_message(bytes),
+            MessageType::Bitfield => self.parse_bitfield_message(),
+            MessageType::Unchoke => self.parse_unchoke_message(),
+            MessageType::Interested => self.parse_interested_message(),
+            MessageType::NotInterested => self.parse_not_interested_message(),
+            MessageType::Have => self.parse_have_message(),
+            MessageType::Request => self.parse_request_message(),
+            MessageType::Piece => self.parse_piece_message(),
         }
     }
 
     /// Write the received bytes in the buffer
-    /// Returns the number of bytes received
+    /// Returns the received BitTorrent message or None (if there is no data in the buffer)
     pub fn receive(&mut self) -> Result<Option<Message>, Error> {
         // check if it is a handshake
         // PWP message are all starting with a 4 bytes representing the message length
         let mut zero_to_third_read_bytes: [u8; 4] = [0; 4];
-        let number_of_bytes_read = match self.stream.read(&mut zero_to_third_read_bytes) {
+        let number_of_bytes_read = match self.stream.peek(&mut zero_to_third_read_bytes) {
             Ok(read_bytes) => read_bytes,
             Err(_) => return Ok(None),
         };
-
         if number_of_bytes_read == 0 {
             return Ok(None);
         }
@@ -164,19 +244,17 @@ impl TcpSession {
             return Ok(Some(Message::KeepAlive));
         }
 
-        let mut fourth_read_byte: [u8; 1] = [0];
-        self.stream
-            .read(&mut fourth_read_byte)
-            .map_err(|_| Error::FailedToReadFromSocket)?;
-        let mut zero_to_fourth_read_bytes = [
-            zero_to_third_read_bytes[0],
-            zero_to_third_read_bytes[1],
-            zero_to_third_read_bytes[2],
-            zero_to_third_read_bytes[3],
-            fourth_read_byte[0],
-        ];
-
         // Handshake handling
+        let mut zero_to_fourth_read_bytes: [u8; 5] = [0; 5];
+        let number_of_bytes_read = match self.stream.peek(&mut zero_to_fourth_read_bytes) {
+            Ok(read_bytes) => read_bytes,
+            Err(_) => return Ok(None),
+        };
+
+        if number_of_bytes_read == 0 {
+            return Ok(None);
+        }
+
         let mut handshake_protocol_name = Handshake::BITTORRENT_VERSION_1_PROTOCOL_NAME.chars();
         let expected_four_first_byte_of_handshake = [
             Handshake::BITTORRENT_VERSION_1_PROTOCOL_NAME_LENGTH,
@@ -186,34 +264,13 @@ impl TcpSession {
             handshake_protocol_name.next().unwrap() as u8,
         ];
         if zero_to_fourth_read_bytes == expected_four_first_byte_of_handshake {
-            // Handshake message case
-            let mut handshake_bytes: Vec<u8> = Vec::new();
-            handshake_bytes.resize(
-                Handshake::HANDSHAKE_VERSION_1_MESSAGE_LENGTH
-                    - expected_four_first_byte_of_handshake.len(),
-                0,
-            );
-            self.stream()
-                .read(&mut handshake_bytes)
-                .map_err(|_| Error::FailedToReadFromSocket)?;
-            let mut bytes = Vec::new();
-            bytes.extend_from_slice(&mut zero_to_fourth_read_bytes);
-            bytes.extend_from_slice(&mut handshake_bytes);
-
-            // Create handshake message from bytes
-            let handshake = match Handshake::from_bytes(&bytes) {
-                Ok(handshake_and_size) => handshake_and_size.0,
-                Err(error) => return Err(error),
-            };
-            return Ok(Some(Message::Handshake(handshake)));
+            return self.parse_handshake_message();
         }
 
         // PWP messages
         // if not handshake, it is a pwp message
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(&zero_to_fourth_read_bytes);
-        match identity_first_message_type_of(&bytes) {
-            Ok(message) => self.parse_message(message, &mut bytes),
+        match identity_first_message_type_of(&zero_to_fourth_read_bytes) {
+            Ok(message) => self.parse_message(message),
             Err(error) => Err(error),
         }
     }

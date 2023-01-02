@@ -6,6 +6,7 @@ pub mod user_case {
             Bitfield, Handshake, Interested, MandatoryBitTorrentMessageFields, Message,
             MessageType, Request,
         },
+        state_machine::identity::generate_random_identity,
         tcp::TcpSession,
         tests::pwp::unittest::{path_build_to_pwp_message, read_bytes_from},
         BlockReaderWriter, Torrent,
@@ -75,7 +76,7 @@ pub mod user_case {
         let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 1;
         let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
             .expect("failed to execute seeder process child");
-        sleep(Duration::from_secs(5));
+        sleep(Duration::from_secs(1));
 
         // TCP connection
         let seeder_peer =
@@ -108,6 +109,7 @@ pub mod user_case {
 
         // Try to receive handshake
         // Leecher <-[Handshake]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_hanshake_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -146,7 +148,7 @@ pub mod user_case {
         let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 2;
         let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
             .expect("failed to execute seeder process child");
-        sleep(Duration::from_secs(5));
+        sleep(Duration::from_secs(1));
 
         // TCP connection
         let seeder_peer =
@@ -181,6 +183,7 @@ pub mod user_case {
 
         // Try to receive handshake
         // Leecher <-[Handshake]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_hanshake_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -203,6 +206,7 @@ pub mod user_case {
 
         // Try to receive Bitfield
         // Leecher <-[Bitfield]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_bitfield_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -245,7 +249,7 @@ pub mod user_case {
         let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 3;
         let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
             .expect("failed to execute seeder process child");
-        sleep(Duration::from_secs(5));
+        sleep(Duration::from_secs(1));
 
         // TCP connection
         let seeder_peer =
@@ -280,6 +284,7 @@ pub mod user_case {
 
         // Try to receive handshake
         // Leecher <-[Handshake]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_hanshake_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -301,6 +306,7 @@ pub mod user_case {
         };
 
         // Leecher <-[Bitfield]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_bitfield_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -346,6 +352,7 @@ pub mod user_case {
 
         // Try to receive unchoke
         // Leecher <-[Unchoke]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_unchoke_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -387,7 +394,7 @@ pub mod user_case {
         let seeder_port = SEEDER_TCP_DOWNLOAD_PORT - 4;
         let mut seeder_process_child = run_seeder(&torrent_filename_to_upload, seeder_port)
             .expect("failed to execute seeder process child");
-        sleep(Duration::from_secs(5));
+        sleep(Duration::from_secs(1));
 
         // TCP connection
         let seeder_peer =
@@ -422,6 +429,7 @@ pub mod user_case {
 
         // Try to receive handshake
         // Leecher <-[Handshake]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_hanshake_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -443,6 +451,7 @@ pub mod user_case {
         };
 
         // Leecher <-[Bitfield]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_bitfield_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -487,6 +496,7 @@ pub mod user_case {
         );
 
         // Leecher <-[Unchoke]-- Seeder
+        sleep(Duration::from_secs(1));
         let received_unchoke_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -528,6 +538,7 @@ pub mod user_case {
         );
 
         // Leecher <-[Piece:0] -- Seeder
+        sleep(Duration::from_secs(5));
         let received_piece_message = match tcp_session.receive() {
             Ok(maybe_message) => match maybe_message {
                 Some(message) => message,
@@ -543,6 +554,7 @@ pub mod user_case {
                 panic!("{:?}", error);
             }
         };
+
         let received_piece = match received_piece_message {
             Message::Piece(piece) => piece,
             _ => {
@@ -558,9 +570,10 @@ pub mod user_case {
         );
         let expected_piece_bytes =
             read_bytes_from(&path_build_to_pwp_message("venon_piece_0x00_0x0000.bin"));
+        assert_eq!(received_piece.data().len(), (&expected_piece_bytes).len());
         assert_eq!(received_piece.data(), &expected_piece_bytes);
 
-        // End of test
+        // Close peer and tracker
         tracker_process_child.kill().unwrap();
         seeder_process_child.kill().unwrap();
     }

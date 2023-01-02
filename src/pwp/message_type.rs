@@ -13,6 +13,8 @@ pub enum MessageType {
 
 // Documentation for message: https://wiki.theory.org/BitTorrentSpecification#Messages
 impl MessageType {
+    pub const PWP_MESSAGE_LENGTH_FIELD_SIZE: u32 = 4;
+
     pub fn id(self) -> u8 {
         match self {
             MessageType::Unchoke => 1,
@@ -31,10 +33,10 @@ impl MessageType {
             MessageType::Unchoke => 1,
             MessageType::Interested => 1,
             MessageType::NotInterested => 1,
-            MessageType::Have => 5,
+            MessageType::Have => 1 + 4, // id + piece index
             MessageType::Bitfield => 1,
-            MessageType::Request => 13,
-            MessageType::Piece => 9,
+            MessageType::Request => 1 + 3 * 4, // id + index + begin + length
+            MessageType::Piece => 1 + 2 * 4,   // id + index + begin
         }
     }
 }

@@ -201,48 +201,47 @@ impl StateMachine {
     }
 
     fn request_pieces(&mut self, peer: Peer) {
-        let mut peer_bitfield = self.peers_bitfield.get(&peer).unwrap();
+        let peer_bitfield = self.peers_bitfield.get(&peer).unwrap();
         let interesting_pieces = self.interesting_pieces(peer_bitfield.clone());
-        let mut requested_pieces = 0;
 
         interesting_pieces
             .iter()
             .enumerate()
             .filter(|(piece_index, value)| *value)
-            .for_each(|(piece_index, _)| {
-                if let Some(false) = self.requested_pieces.get(piece_index) {
-                    if requested_pieces >= 1 {
-                        return;
-                    }
+            .for_each(|(piece_index, _)| self.request_piece(piece_index as u32, peer));
+    }
 
-                    let blocks = torrent::div_ceil(
-                        self.torrent.piece_length_in_bytes(),
-                        BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
-                    );
+    fn request_piece(&mut self, piece_index: u32, peer: Peer) {
+        if let Some(true) = self.requested_pieces.get(piece_index as usize) {
+            return;
+        }
 
-                    for block in 0..blocks {
-                        let is_last_piece =
-                            piece_index as u32 == (self.torrent.number_of_pieces() - 1);
-                        let is_last_block = block == blocks - 1;
-                        let length = if is_last_piece && is_last_block {
-                            self.torrent.total_length_in_bytes()
-                                % BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
-                        } else {
-                            BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
-                        };
+        let blocks_per_piece = torrent::div_ceil(
+            self.torrent.piece_length_in_bytes(),
+            BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+        );
 
-                        let request = Request::new(
-                            piece_index as u32,
-                            block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
-                            length,
-                        );
-                        self.send_message(peer.clone(), Message::Request(request));
-                        thread::sleep(Duration::from_millis(30));
-                        self.requested_pieces.set(piece_index, true);
-                    }
-                    requested_pieces += 1;
-                }
-            });
+        for block in 0..blocks_per_piece {
+            let is_last_piece = piece_index as u32 == (self.torrent.number_of_pieces() - 1);
+            let is_last_block = block == blocks_per_piece - 1;
+            let length = if is_last_piece && is_last_block {
+                self.torrent.total_length_in_bytes()
+                    % BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+            } else {
+                BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+            };
+
+            let request = Request::new(
+                piece_index as u32,
+                block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+                length,
+            );
+
+            self.send_message(peer, Message::Request(request));
+            thread::sleep(Duration::from_millis(50));
+
+            self.requested_pieces.set(piece_index as usize, true);
+        }
     }
 
     fn save_piece(&mut self, message: Message) {

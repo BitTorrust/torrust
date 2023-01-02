@@ -111,7 +111,7 @@ impl Torrent {
                     }
                     _ => return Err(Error::BencodeObjectHasUnexpectedType),
                 },
-                other => log::warn!("Skipping field {} from torrent file.", other),
+                other => log::debug!("Skipping field {} from torrent file.", other),
             }
         }
         Ok(())

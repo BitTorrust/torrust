@@ -39,6 +39,7 @@ pub struct StateMachine {
     requested_pieces: BitVec,
     block_reader_writer: BlockReaderWriter,
     blocks_by_piece: HashMap<u32, usize>,
+    mock_peers: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -65,7 +66,7 @@ enum DownloadBitTorrentState {
 impl StateMachine {
     pub const CLIENT_PORT: u16 = 6882;
 
-    pub fn new(torrent: Torrent, working_directory: &PathBuf) -> Self {
+    pub fn new(torrent: Torrent, working_directory: &PathBuf, mock_peers: bool) -> Self {
         let (message_sender, message_receiver) = crossbeam_channel::unbounded();
         let tcp_handler = TcpHandler::new(message_sender);
         let bitfield = local_bitfield(&torrent, working_directory);
@@ -89,6 +90,7 @@ impl StateMachine {
             requested_pieces: BitVec::from_elem(bitfield_length, false),
             block_reader_writer,
             blocks_by_piece: HashMap::new(),
+            mock_peers,
         }
     }
 
@@ -97,6 +99,11 @@ impl StateMachine {
     }
 
     pub fn run(&mut self) {
+        if self.is_download_finished() {
+            log::info!("Download already done.");
+            return;
+        }
+
         self.fill_peer_list();
         self.send_handshake();
 
@@ -115,6 +122,7 @@ impl StateMachine {
 
             if self.is_download_finished() {
                 //TODO: stop the other thread
+                log::info!("Download finished.");
                 break;
             }
         }
@@ -310,9 +318,26 @@ impl StateMachine {
         }
     }
 
+    fn mock_peers(&mut self) {
+        use std::net::SocketAddr;
+
+        for id in 1..=3 {
+            let address = format!("127.0.0.1:200{}", id);
+            let peer = Peer::from_socket_address(address.parse::<SocketAddr>().unwrap());
+            let initial_state = DownloadBitTorrentState::Unconnected;
+
+            self.download_peers.insert(peer, initial_state);
+        }
+    }
+
     fn fill_peer_list(&mut self) {
-        while let Err(_) = self.send_tracker_request() {
-            self.send_tracker_request();
+        if self.mock_peers {
+            self.mock_peers();
+        } else {
+            while let Err(_) = self.send_tracker_request() {
+                let _ = self.send_tracker_request();
+                thread::sleep(Duration::from_millis(500));
+            }
         }
     }
 

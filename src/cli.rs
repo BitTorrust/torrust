@@ -17,6 +17,10 @@ pub struct Args {
     /// Print minimal debug info
     #[arg(short, long,  action = ArgAction::SetTrue)]
     debug: bool,
+
+    /// Communicate directly with three local peers using ports 2001, 2002 and 2003.
+    #[arg(short, long,  action = ArgAction::SetTrue)]
+    mock: bool,
 }
 
 impl Args {
@@ -34,5 +38,9 @@ impl Args {
 
     pub fn debug(&self) -> bool {
         self.debug
+    }
+
+    pub fn mock(&self) -> bool {
+        self.mock
     }
 }

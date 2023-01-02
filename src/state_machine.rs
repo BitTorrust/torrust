@@ -24,7 +24,7 @@ pub use wait::Wait;
 pub(crate) mod identity;
 use identity::generate_random_identity;
 
-use crate::{Bitfield, BlockReaderWriter};
+use crate::{Bitfield, BlockReaderWriter, NotInterested};
 
 #[derive(Debug)]
 pub struct StateMachine {
@@ -61,6 +61,7 @@ enum DownloadBitTorrentState {
     NotInterestedAndChoked,
     InterestedAndChoked,
     InterestedAndUnchoked,
+    NotInterestedAndUnchoked,
 }
 
 impl StateMachine {
@@ -118,10 +119,9 @@ impl StateMachine {
             }
 
             self.handle_current_downloads();
-            self.is_download_finished();
 
             if self.is_download_finished() {
-                //TODO: stop the other thread
+                self.update_download_peers();
                 log::info!("Download finished.");
                 break;
             }
@@ -131,6 +131,13 @@ impl StateMachine {
     fn is_download_finished(&self) -> bool {
         self.bitfield.iter().filter(|piece| *piece).count()
             == self.torrent.number_of_pieces() as usize
+    }
+
+    fn update_download_peers(&mut self) {
+        self.download_peers.values_mut().for_each(|state| {
+            *state = DownloadBitTorrentState::NotInterestedAndUnchoked;
+        });
+        self.handle_current_downloads();
     }
 
     fn handle_messsage(&mut self, peer: Peer, message: Message) {
@@ -159,6 +166,9 @@ impl StateMachine {
             .iter()
             .for_each(|(peer, state)| match state {
                 DownloadBitTorrentState::InterestedAndUnchoked => self.request_pieces(peer.clone()),
+                DownloadBitTorrentState::NotInterestedAndUnchoked => {
+                    self.send_not_interested(peer.clone())
+                }
                 _ => (),
             })
     }
@@ -176,7 +186,7 @@ impl StateMachine {
                 if self.peers_bitfield.len() == self.download_peers.len() {
                     log::info!("All bitfields received");
                     self.download_peers.values_mut().for_each(|v| *v = DownloadBitTorrentState::NotInterestedAndChoked);
-                    self.send_interested_message();
+                    self.send_interested_messages();
                 } else {
                     let missing_bitfields = self.download_peers.len() - self.peers_bitfield.len();
                     log::info!("Waiting for missing {} bitfields", missing_bitfields);
@@ -244,6 +254,10 @@ impl StateMachine {
         }
     }
 
+    fn send_not_interested(&mut self, peer: Peer) {
+        let message = NotInterested::new();
+        self.send_message(peer, Message::NotInterested(message));
+    }
     fn save_piece(&mut self, message: Message) {
         match message {
             Message::Piece(piece) => {
@@ -271,7 +285,7 @@ impl StateMachine {
         }
     }
 
-    fn send_interested_message(&mut self) {
+    fn send_interested_messages(&mut self) {
         self.peers_bitfield
             .clone()
             .into_iter()
@@ -279,13 +293,17 @@ impl StateMachine {
                 let interesting_pieces = self.interesting_pieces(peer_bitfield);
 
                 if interesting_pieces.any() {
-                    let interested = Interested::new();
-                    self.send_message(peer.clone(), Message::Interested(interested));
-                    log::info!("Interested message sent to {:?}", peer);
+                    self.send_interested_message(peer.clone());
                     self.download_peers
                         .insert(peer, DownloadBitTorrentState::InterestedAndChoked);
                 }
             })
+    }
+
+    fn send_interested_message(&mut self, peer: Peer) {
+        let interested = Interested::new();
+        self.send_message(peer.clone(), Message::Interested(interested));
+        log::info!("Interested message sent to {:?}", peer);
     }
     fn interesting_pieces(&self, mut peer_bitfield: BitVec) -> BitVec {
         let mut local_bitfield = self.bitfield.clone();

@@ -238,7 +238,7 @@ impl StateMachine {
             );
 
             self.send_message(peer, Message::Request(request));
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(50));
 
             self.requested_pieces.set(piece_index as usize, true);
         }

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 
 use bit_vec::BitVec;
 use rand::seq::SliceRandom;
@@ -15,10 +15,10 @@ impl PiecesSelection for RarestPiecesSelector {
     ) -> HashMap<u32, Option<Peer>> {
         let mut piece_id_to_maybe_peer: HashMap<u32, Option<Peer>> = HashMap::new();
 
-        let mut piece_to_peers : HashMap<u32, Vec<Peer>> = HashMap::new();
+        let mut piece_to_peers: HashMap<u32, Vec<Peer>> = HashMap::new();
 
         // Make statistics to sort the frequencies of pieces
-        let mut pieces_occurrences : Vec<u32> = Vec::new();
+        let mut pieces_occurrences: Vec<u32> = Vec::new();
         for (current_peer, current_bitvec) in peers_bitfields {
             // Resize pieces_occurrences
             if pieces_occurrences.len() < current_bitvec.len() {
@@ -37,12 +37,12 @@ impl PiecesSelection for RarestPiecesSelector {
                             let mut new_peers = peers.clone();
                             new_peers.push(current_peer);
                             piece_to_peers.insert(piece_id, new_peers);
-                        },
+                        }
                         None => {
-                            let mut new_peers : Vec<Peer> = Vec::new();
+                            let mut new_peers: Vec<Peer> = Vec::new();
                             new_peers.push(current_peer);
-                            piece_to_peers.insert(piece_id,  new_peers);
-                        },
+                            piece_to_peers.insert(piece_id, new_peers);
+                        }
                     }
                 }
             }
@@ -52,7 +52,7 @@ impl PiecesSelection for RarestPiecesSelector {
         println!("piece_to_peers {:?}", piece_to_peers);
 
         // Sort the occurrences
-        let mut occurrence_to_piece_ids : HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut occurrence_to_piece_ids: HashMap<u32, Vec<u32>> = HashMap::new();
         for (piece_id, occurrence) in pieces_occurrences.iter().enumerate() {
             let piece_id = piece_id as u32;
             let occurrence = occurrence.clone();
@@ -61,18 +61,18 @@ impl PiecesSelection for RarestPiecesSelector {
                     let mut new_piece_ids = piece_ids.clone();
                     new_piece_ids.push(piece_id);
                     occurrence_to_piece_ids.insert(occurrence, new_piece_ids);
-                },
+                }
                 None => {
-                    let mut new_piece_ids : Vec<u32> = Vec::new();
+                    let mut new_piece_ids: Vec<u32> = Vec::new();
                     new_piece_ids.push(piece_id);
                     occurrence_to_piece_ids.insert(occurrence, new_piece_ids);
-                },
+                }
             }
         }
         println!("occurrence_to_piece_ids {:?}", occurrence_to_piece_ids);
 
         // Choose the rarest pieces "first"
-        let ordered_occurrences : Vec<u32> = occurrence_to_piece_ids.clone().into_keys().collect();
+        let ordered_occurrences: Vec<u32> = occurrence_to_piece_ids.clone().into_keys().collect();
         for occurrence in ordered_occurrences {
             // Handle the higher priority piece_ids
             if occurrence == 0 {
@@ -89,7 +89,7 @@ impl PiecesSelection for RarestPiecesSelector {
                         let peer = Some(maybe_choosen_peer.unwrap().clone());
                         piece_id_to_maybe_peer.insert(*piece_id, peer);
                     }
-                },
+                }
                 None => (),
             };
         }

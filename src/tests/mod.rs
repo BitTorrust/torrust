@@ -15,3 +15,6 @@ pub mod tcp;
 
 #[cfg(test)]
 pub mod state_machine;
+
+#[cfg(test)]
+pub mod pieces_selection;

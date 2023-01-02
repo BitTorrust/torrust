@@ -21,10 +21,7 @@ pub mod unittest {
         ));
         let bitfield_length = 9;
         let seeder_bitfield = BitVec::from_elem(bitfield_length, true);
-        match peers_bitfields.insert(seeder, seeder_bitfield) {
-            Some(_) => panic!("failed to insert seeder in peers hashmap"),
-            None => (),
-        }
+        peers_bitfields.insert(seeder, seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::new();
         let selection: HashMap<u32, Option<Peer>> =
@@ -63,14 +60,8 @@ pub mod unittest {
         second_part_seeder_bitfield.set(3, false);
         second_part_seeder_bitfield.set(4, false);
 
-        match peers_bitfields.insert(first_part_seeder, first_part_seeder_bitfield) {
-            Some(_) => panic!("failed to insert first seeder in peers hashmap"),
-            None => (),
-        }
-        match peers_bitfields.insert(second_part_seeder, second_part_seeder_bitfield) {
-            Some(_) => panic!("failed to insert second seeder in peers hashmap"),
-            None => (),
-        }
+        peers_bitfields.insert(first_part_seeder, first_part_seeder_bitfield);
+        peers_bitfields.insert(second_part_seeder, second_part_seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
         let selection: HashMap<u32, Option<Peer>> =
@@ -106,14 +97,8 @@ pub mod unittest {
         second_part_seeder_bitfield.set(0, false);
         second_part_seeder_bitfield.set(1, false);
 
-        match peers_bitfields.insert(first_part_seeder, first_part_seeder_bitfield) {
-            Some(_) => panic!("failed to insert first seeder in peers hashmap"),
-            None => (),
-        }
-        match peers_bitfields.insert(second_part_seeder, second_part_seeder_bitfield) {
-            Some(_) => panic!("failed to insert second seeder in peers hashmap"),
-            None => (),
-        }
+        peers_bitfields.insert(first_part_seeder, first_part_seeder_bitfield);
+        peers_bitfields.insert(second_part_seeder, second_part_seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
         let selection: HashMap<u32, Option<Peer>> =
@@ -156,10 +141,7 @@ pub mod unittest {
         let mut seeder_bitfield = BitVec::from_elem(bitfield_length, true);
         seeder_bitfield.set(0, false);
 
-        match peers_bitfields.insert(seeder, seeder_bitfield) {
-            Some(_) => panic!("failed to insert seeder in peers hashmap"),
-            None => (),
-        }
+        peers_bitfields.insert(seeder, seeder_bitfield);
 
         let mut mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
         mybitfield.set(0, true);
@@ -197,10 +179,7 @@ pub mod unittest {
         let mut seeder_bitfield = BitVec::from_elem(bitfield_length, true);
         seeder_bitfield.set(0, false);
 
-        match peers_bitfields.insert(seeder, seeder_bitfield) {
-            Some(_) => panic!("failed to insert seeder in peers hashmap"),
-            None => (),
-        }
+        peers_bitfields.insert(seeder, seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
         let selection: HashMap<u32, Option<Peer>> =

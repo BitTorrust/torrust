@@ -13,7 +13,7 @@ use {
 };
 
 mod tcp_handler;
-use std::{collections::HashMap, hash::Hash, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use bit_vec::BitVec;
 use tcp_handler::TcpHandler;
@@ -24,7 +24,10 @@ pub use wait::Wait;
 pub(crate) mod identity;
 use identity::generate_random_identity;
 
-use crate::{Bitfield, BlockReaderWriter, NotInterested};
+use crate::{
+    pieces_selection::{DistributedSelector, PiecesSelection},
+    BlockReaderWriter, NotInterested,
+};
 
 #[derive(Debug)]
 pub struct StateMachine {
@@ -161,11 +164,18 @@ impl StateMachine {
     }
 
     fn handle_current_downloads(&mut self) {
+        let selector = DistributedSelector::pieces_selection(
+            self.bitfield.clone(),
+            self.peers_bitfield.clone(),
+        );
+
         self.download_peers
             .clone()
             .iter()
             .for_each(|(peer, state)| match state {
-                DownloadBitTorrentState::InterestedAndUnchoked => self.request_pieces(peer.clone()),
+                DownloadBitTorrentState::InterestedAndUnchoked => {
+                    self.request_pieces(peer.clone(), &selector)
+                }
                 DownloadBitTorrentState::NotInterestedAndUnchoked => {
                     self.send_not_interested(peer.clone())
                 }
@@ -198,7 +208,7 @@ impl StateMachine {
 
     fn handle_unchoke(&mut self, peer: Peer, message: Message) {
         match message {
-            Message::Unchoke(message) => {
+            Message::Unchoke(_message) => {
                 log::info!("Unchoke message received from peer {:?}", peer);
                 self.download_peers
                     .insert(peer, DownloadBitTorrentState::InterestedAndUnchoked);
@@ -210,15 +220,11 @@ impl StateMachine {
         }
     }
 
-    fn request_pieces(&mut self, peer: Peer) {
-        let peer_bitfield = self.peers_bitfield.get(&peer).unwrap();
-        let interesting_pieces = self.interesting_pieces(peer_bitfield.clone());
-
-        interesting_pieces
+    fn request_pieces(&mut self, peer: Peer, selector: &HashMap<u32, Option<Peer>>) {
+        selector
             .iter()
-            .enumerate()
-            .filter(|(piece_index, value)| *value)
-            .for_each(|(piece_index, _)| self.request_piece(piece_index as u32, peer));
+            .filter(|(_, maybe_peer)| *maybe_peer == &Some(peer))
+            .for_each(|(piece, peer)| self.request_piece(*piece, peer.unwrap()));
     }
 
     fn request_piece(&mut self, piece_index: u32, peer: Peer) {

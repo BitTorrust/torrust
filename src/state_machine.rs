@@ -112,11 +112,7 @@ impl StateMachine {
         self.send_handshake();
 
         loop {
-            let maybe_message = self
-                .message_receiver
-                .recv_timeout(Duration::from_millis(10));
-
-            if let Ok((peer, message)) = maybe_message {
+            if let Ok((peer, message)) = self.message_receiver.recv() {
                 log::debug!("Received message {:?} from {:?}", message, peer);
                 self.handle_messsage(peer, message)
             }

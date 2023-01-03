@@ -20,6 +20,8 @@ mod state_machine;
 
 mod adaptative_wait;
 
+mod pieces_selection;
+
 #[cfg(test)]
 mod tests;
 

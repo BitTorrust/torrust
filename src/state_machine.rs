@@ -121,7 +121,7 @@ impl StateMachine {
             self.handle_current_downloads();
 
             if self.is_download_finished() {
-                self.send_not_interested_messages();
+                self.update_download_peers();
                 log::info!("Download finished.");
                 break;
             }
@@ -133,7 +133,7 @@ impl StateMachine {
             == self.torrent.number_of_pieces() as usize
     }
 
-    fn send_not_interested_messages(&mut self) {
+    fn update_download_peers(&mut self) {
         self.download_peers.values_mut().for_each(|state| {
             *state = DownloadBitTorrentState::NotInterestedAndUnchoked;
         });

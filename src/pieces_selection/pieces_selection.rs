@@ -1,6 +1,7 @@
 use bit_vec::BitVec;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
+use super::PieceSelection;
 use crate::http::Peer;
 
 pub trait PiecesSelection {
@@ -9,4 +10,11 @@ pub trait PiecesSelection {
         mybitfield: BitVec,
         peers_bitfields: HashMap<Peer, BitVec>,
     ) -> HashMap<u32, Option<Peer>>;
+}
+
+pub trait PriorityPiecesSelection {
+    fn priority_pieces_selection(
+        mybitfield: BitVec,
+        peers_bitfields: HashMap<Peer, BitVec>,
+    ) -> VecDeque<PieceSelection>;
 }

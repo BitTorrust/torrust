@@ -29,7 +29,7 @@ impl TcpHandler {
         let peers = Arc::new(Mutex::new(HashMap::new()));
         let peers_ref = peers.clone();
 
-        let mut adaptative_wait = AdaptativeWait::new(64, Duration::from_millis(100));
+        let adaptative_wait = AdaptativeWait::new(64, Duration::from_millis(100));
         thread::spawn(move || {
             TcpHandler::run(
                 peers_ref,

@@ -183,7 +183,7 @@ impl StateMachine {
         log::debug!("Handshake sent state!");
 
         match message {
-            Message::Handshake(message) => {
+            Message::Handshake(_) => {
                 log::debug!("Handshake response received from peer {:?}", peer);
             },
             Message::Bitfield(message) => {

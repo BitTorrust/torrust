@@ -1,7 +1,7 @@
 use bit_vec::BitVec;
 use std::collections::HashMap;
 
-use crate::{http::Peer, Error};
+use crate::http::Peer;
 
 pub trait PiecesSelection {
     /// Returns a associative table matching a piece_id with a peer for requesting the piece associated with the piece_id

@@ -18,17 +18,14 @@ use {
 
 #[derive(Debug)]
 pub struct TcpSession {
-    peer: Peer,
     stream: TcpStream,
 }
 
 impl TcpSession {
     pub fn from_stream(mut stream: TcpStream) -> Result<Self, Error> {
-        let address = stream.peer_addr().unwrap();
         Self::set_stream_parameters(&mut stream)?;
-        let peer = Peer::from_socket_address(address);
 
-        Ok(Self { peer, stream })
+        Ok(Self { stream })
     }
 
     pub fn connect(peer: Peer) -> Result<Self, Error> {
@@ -36,7 +33,7 @@ impl TcpSession {
         let mut stream = TcpStream::connect(address).map_err(|_| Error::FailedToConnectToPeer)?;
         Self::set_stream_parameters(&mut stream)?;
 
-        Ok(Self { peer, stream })
+        Ok(Self { stream })
     }
 
     fn set_stream_parameters(stream: &mut TcpStream) -> Result<(), Error> {

@@ -221,10 +221,17 @@ impl StateMachine {
     }
 
     fn request_pieces(&mut self, peer: Peer, selector: &HashMap<u32, Option<Peer>>) {
+        let mut pieces_to_request = 1;
+
         selector
             .iter()
             .filter(|(_, maybe_peer)| *maybe_peer == &Some(peer))
-            .for_each(|(piece, peer)| self.request_piece(*piece, peer.unwrap()));
+            .for_each(|(piece, peer)| {
+                if pieces_to_request > 0 {
+                    self.request_piece(*piece, peer.unwrap());
+                    pieces_to_request -= 1;
+                }
+            });
     }
 
     fn request_piece(&mut self, piece_index: u32, peer: Peer) {
@@ -254,10 +261,9 @@ impl StateMachine {
             );
 
             self.send_message(peer, Message::Request(request));
-            thread::sleep(Duration::from_millis(50));
-
-            self.requested_pieces.set(piece_index as usize, true);
         }
+
+        self.requested_pieces.set(piece_index as usize, true);
     }
 
     fn send_not_interested(&mut self, peer: Peer) {

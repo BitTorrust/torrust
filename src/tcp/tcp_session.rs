@@ -11,7 +11,8 @@ use {
     },
     std::{
         io::{self, prelude::*},
-        net::{TcpListener, TcpStream},
+        net::TcpStream,
+        time::Duration,
     },
 };
 
@@ -22,8 +23,9 @@ pub struct TcpSession {
 }
 
 impl TcpSession {
-    pub fn from_stream(stream: TcpStream) -> Result<Self, Error> {
+    pub fn from_stream(mut stream: TcpStream) -> Result<Self, Error> {
         let address = stream.peer_addr().unwrap();
+        Self::set_stream_parameters(&mut stream)?;
         let peer = Peer::from_socket_address(address);
 
         Ok(Self { peer, stream })
@@ -31,28 +33,22 @@ impl TcpSession {
 
     pub fn connect(peer: Peer) -> Result<Self, Error> {
         let address = peer.socket_address();
-        let stream = TcpStream::connect(address).map_err(|_| Error::FailedToConnectToPeer)?;
+        let mut stream = TcpStream::connect(address).map_err(|_| Error::FailedToConnectToPeer)?;
+        Self::set_stream_parameters(&mut stream)?;
+
+        Ok(Self { peer, stream })
+    }
+
+    fn set_stream_parameters(stream: &mut TcpStream) -> Result<(), Error> {
         stream
             .set_nonblocking(true)
             .map_err(|_| Error::FailedToSetSocketAsNonBlocking)?;
-        Ok(Self { peer, stream })
-    }
 
-    pub fn accept(listener: TcpListener) -> Result<Self, Error> {
-        let (stream, socket_address) = listener
-            .accept()
-            .map_err(|_| Error::FailedToConnectToPeer)?;
+        stream
+            .set_write_timeout(Some(Duration::from_millis(100)))
+            .map_err(|_| Error::FailedToSetSocketWriteTimeout)?;
 
-        let peer = Peer::from_socket_address(socket_address);
-
-        Ok(Self { peer, stream })
-    }
-
-    pub fn listen() -> Result<TcpListener, Error> {
-        //TODO change hardcoded ip address
-        let listener =
-            TcpListener::bind("127.0.0.1:6882").map_err(|_| Error::FailedToCreateTcpListener)?;
-        Ok(listener)
+        Ok(())
     }
 
     fn stream(&self) -> &TcpStream {

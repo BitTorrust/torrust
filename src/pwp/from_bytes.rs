@@ -20,5 +20,6 @@ pub fn identity_first_message_type_of(bytes: &[u8]) -> Result<MessageType, Error
             return Ok(enum_instance);
         }
     }
+
     Err(Error::FailedToFindTheMessageTypeOfRawBytes)
 }

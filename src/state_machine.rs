@@ -4,7 +4,7 @@ use {
         file_management::local_bitfield,
         http::Peer,
         http::{TrackerAddress, TrackerRequest},
-        pwp::{Bitfield, Handshake, Interested, Message, NotInterested, Request, Unchoke},
+        pwp::{Bitfield, Handshake, Interested, Message, NotInterested, Piece, Request, Unchoke},
         torrent::{self, Torrent},
     },
     crossbeam_channel::Receiver,
@@ -25,8 +25,9 @@ pub(crate) mod identity;
 use identity::generate_random_identity;
 
 use crate::{
+    http::TrackerResponse,
     pieces_selection::{DistributedSelector, PiecesSelection},
-    BlockReaderWriter,
+    BlockReaderWriter, FromBytes,
 };
 
 #[derive(Debug)]
@@ -50,7 +51,6 @@ pub struct StateMachine {
 enum MySeederState {
     //Upload states
     WaitingHandshake,
-    WaitingBitfield,
     NotInterestingAndChoking,
     InterestingAndChoking,
     InterestingAndUnchoking,
@@ -62,12 +62,11 @@ enum MyLeecherState {
     Unconnected,
     WaitingHandshake,
     WaitingBitfield,
+    BitfieldSent,
     NotInterestedAndChoked,
     InterestedAndChoked,
     InterestedAndUnchoked,
     NotInterestedAndUnchoked,
-    //TODO: In the Done state I should send my Not Interested messages with trigger_not_interested_messages and kill the threads
-    Done,
 }
 
 impl StateMachine {
@@ -115,21 +114,15 @@ impl StateMachine {
             log::info!("File already on disk");
         }
 
-        self.fill_peer_list();
+        self.connect_to_tracker();
 
         loop {
             if let Ok((peer, message)) = self.message_receiver.recv() {
                 log::debug!("Received message {:?} from {:?}", message, peer);
-                self.handle_messsage(peer, message)
+                self.handle_messsage(peer, message);
             }
 
             self.handle_current_downloads();
-
-            // if self.is_file_on_disk() {
-            //     //self.trigger_not_interested_messages();
-            //     log::info!("Download finished.");
-            //     break;
-            // }
         }
     }
 
@@ -138,33 +131,31 @@ impl StateMachine {
             == self.torrent.number_of_pieces() as usize
     }
 
-    fn trigger_not_interested_messages(&mut self) {
-        self.update_all_my_leecher_states(MyLeecherState::NotInterestedAndUnchoked);
-        self.handle_current_downloads();
-    }
-
     fn handle_messsage(&mut self, peer: Peer, message: Message) {
-        if !self.seeder_peers.contains_key(&peer) {
-            return;
-        }
-
         let peer_download_state = self.seeder_peers.get(&peer);
         let peer_upload_state = self.leecher_peers.get(&peer);
 
         match (peer_download_state, peer_upload_state) {
+            (None, None) => self.handle_handshake(peer, message),
             (Some(MyLeecherState::WaitingHandshake), _) => self.handle_handshake(peer, message),
-            (Some(MyLeecherState::WaitingBitfield), _) => self.handle_bitfield(peer, message),
+            (Some(MyLeecherState::WaitingBitfield | MyLeecherState::BitfieldSent), _) => {
+                self.handle_bitfield(peer, message)
+            }
             (Some(MyLeecherState::InterestedAndChoked), _) => self.handle_unchoke(peer, message),
-            (Some(MyLeecherState::InterestedAndUnchoked), _) => self.save_piece(message),
+            (Some(MyLeecherState::InterestedAndUnchoked), _) => self.handle_piece(peer, message),
             (_, Some(MySeederState::NotInterestingAndChoking)) => {
                 self.handle_interested(peer, message)
             }
-            //(_, Some(MySeederState::InterestingAndUnchoking)) => self.handle_request(peer, message),
+            (_, Some(MySeederState::InterestingAndUnchoking)) => self.handle_request(peer, message),
             _ => unimplemented!(),
         }
     }
 
     fn handle_current_downloads(&mut self) {
+        // TODO: uncomment to support passive connections
+        // if self.is_file_on_disk() {
+        //     return;
+        // }
         let selector = DistributedSelector::pieces_selection(
             self.bitfield.clone(),
             self.peers_bitfield.clone(),
@@ -178,9 +169,6 @@ impl StateMachine {
                 MyLeecherState::InterestedAndUnchoked => {
                     self.request_pieces(peer.clone(), &selector)
                 }
-                MyLeecherState::NotInterestedAndUnchoked => {
-                    self.send_not_interested_message(peer.clone())
-                }
                 _ => (),
             });
     }
@@ -191,19 +179,22 @@ impl StateMachine {
         match message {
             Message::Handshake(_message) => {
                 if self.is_connection_started(peer) {
-                    //The seeder state saved here will determinate whether we have to send a bitfield back or not in handle_bitfield
                     self.seeder_peers.insert(peer, MyLeecherState::WaitingBitfield);
-                    self.leecher_peers.insert(peer, MySeederState::WaitingBitfield);
                 } else {
                     self.answer_handshake(peer);
                     self.leecher_peers.insert(peer, MySeederState::NotInterestingAndChoking);
+                    self.seeder_peers.insert(peer, MyLeecherState::BitfieldSent);
                 }
-
             },
             _ => log::warn!("Unexpected message from {:?}, cannot initiate a connection without a Handshake message", peer)
         }
     }
 
+    //  If we as a leecher, start a connection sending a handshake
+    //  We will also update the leecher_peers list in order to know
+    //  If the arriving handshake is from a passive or active connection
+    // The objective of this mess, is to not send a bitfield message twice
+    // which will be the case if
     fn is_connection_started(&self, peer: Peer) -> bool {
         let is_connected;
         match self.leecher_peers.get(&peer) {
@@ -219,9 +210,8 @@ impl StateMachine {
         match message {
             Message::Bitfield(message) => {
 
-                match self.leecher_peers.get(&peer) {
-                    Some(MySeederState::WaitingBitfield) => self.send_bitfield_message(peer),
-                    _ => {},
+                if let Some(MyLeecherState::WaitingBitfield) = self.seeder_peers.get(&peer){
+                    self.send_bitfield_message(peer);
                 }
 
                 self.seeder_peers.insert(peer, MyLeecherState::NotInterestedAndChoked);
@@ -275,7 +265,9 @@ impl StateMachine {
 
     fn answer_handshake(&mut self, peer: Peer) {
         self.send_handshake_message(peer);
-        self.send_bitfield_message(peer);
+        if self.bitfield.any() {
+            self.send_bitfield_message(peer);
+        }
     }
 
     fn request_pieces(&mut self, peer: Peer, selector: &HashMap<u32, Option<Peer>>) {
@@ -324,30 +316,55 @@ impl StateMachine {
         self.requested_pieces.set(piece_index as usize, true);
     }
 
-    fn save_piece(&mut self, message: Message) {
+    //TODO: write update_peer_bitfield function at a Have message in any state
+    fn handle_piece(&mut self, peer: Peer, message: Message) {
         match message {
             Message::Piece(piece) => {
-                self.block_reader_writer
-                    .write(
-                        piece.piece_index(),
-                        piece.begin_offset_of_piece(),
-                        piece.data(),
-                    )
-                    .unwrap();
-                if let Some(blocks) = self.blocks_by_piece.get_mut(&piece.piece_index()) {
-                    *blocks = *blocks + 1;
-                    if *blocks
-                        == self.torrent.piece_length_in_bytes() as usize
-                            / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
-                            - 1
-                    {
-                        self.bitfield.set(piece.piece_index() as usize, true);
-                    }
-                } else {
-                    self.blocks_by_piece.insert(piece.piece_index(), 0);
+                self.save_piece(piece);
+
+                if !self.is_peer_still_interesting(peer) {
+                    self.finish_download_with_peer(peer)
                 }
             }
+            // Message::Have(message) => self.update_peer_bitfield(peer),
             _ => log::warn!("Unexpected message, waiting for piece."),
+        }
+    }
+
+    fn save_piece(&mut self, piece: Piece) {
+        self.block_reader_writer
+            .write(
+                piece.piece_index(),
+                piece.begin_offset_of_piece(),
+                piece.data(),
+            )
+            .unwrap();
+        if let Some(blocks) = self.blocks_by_piece.get_mut(&piece.piece_index()) {
+            *blocks = *blocks + 1;
+            if *blocks
+                == self.torrent.piece_length_in_bytes() as usize
+                    / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
+                    - 1
+            {
+                self.bitfield.set(piece.piece_index() as usize, true);
+            }
+        } else {
+            self.blocks_by_piece.insert(piece.piece_index(), 0);
+        }
+    }
+
+    fn handle_request(&self, peer: Peer, message: Message) {
+        log::debug!("Handling request");
+        match message {
+            Message::Request(request) => {
+                if self.is_piece_on_disk(request.piece_index()) {
+                    self.send_piece(peer, request)
+                }
+            }
+            _ => log::warn!(
+                "Unexpected message {:?}, waiting for request, have, or not interested messages",
+                message
+            ),
         }
     }
 
@@ -377,7 +394,6 @@ impl StateMachine {
             //send handshake
             if let Ok(_) = self.connect(peer) {
                 self.send_handshake_message(peer);
-                // self.send_bitfield_message(peer);
 
                 //update peer state
                 self.seeder_peers
@@ -410,13 +426,22 @@ impl StateMachine {
         }
     }
 
-    fn fill_peer_list(&mut self) {
+    fn connect_to_tracker(&mut self) {
         if self.mock_peers {
             self.mock_peers();
         } else {
-            while let Err(_) = self.send_tracker_request() {
-                let _ = self.send_tracker_request();
-                thread::sleep(Duration::from_millis(1000));
+            loop {
+                let maybe_response = self.send_tracker_request();
+                if let Ok(response) = maybe_response {
+                    // TODO: uncomment to support passive connections
+                    // if !(self.is_file_on_disk()) {
+                    self.fill_peer_list(response.peers()).unwrap();
+                    // }
+
+                    break;
+                } else {
+                    thread::sleep(Duration::from_millis(1000))
+                }
             }
         }
     }
@@ -431,6 +456,31 @@ impl StateMachine {
         }
 
         peers
+    }
+
+    //  Operation
+    //  peer_bitfield AND !my_bitfield
+    // True => Interested
+    // False => NotInterested
+    fn is_peer_still_interesting(&self, mut peer: Peer) -> bool {
+        let mut my_bitfield = self.bitfield.clone();
+        my_bitfield.negate();
+
+        let peer_bitfield = self.peers_bitfield.get(&peer);
+        match peer_bitfield {
+            Some(peer_bitfield) => {
+                let maybe_interesting = peer_bitfield.clone().and(&my_bitfield);
+                maybe_interesting
+            }
+            _ => false,
+        }
+    }
+
+    fn finish_download_with_peer(&mut self, peer: Peer) {
+        log::info!("Peer {:?} sent all the pieces we needed from him", peer);
+        self.send_not_interested_message(peer);
+        self.seeder_peers
+            .insert(peer, MyLeecherState::NotInterestedAndUnchoked);
     }
 
     fn send_handshake_message(&mut self, peer: Peer) {
@@ -458,10 +508,36 @@ impl StateMachine {
         self.send_message(peer, Message::Unchoke(message));
     }
 
+    fn send_piece(&self, peer: Peer, request: Request) {
+        let piece_index = request.piece_index();
+        let piece_offset = request.begin_offset();
+
+        let data = self
+            .block_reader_writer
+            .read(piece_index, piece_offset)
+            .unwrap();
+
+        let piece = Piece::new(piece_index, piece_offset, data);
+        self.send_message(peer, Message::Piece(piece));
+    }
+
+    fn is_piece_on_disk(&self, piece_index: u32) -> bool {
+        let may_have_piece = self.bitfield.get(piece_index as usize);
+        match may_have_piece {
+            Some(true) => return true,
+            Some(false) => return false,
+            None => {
+                log::warn!("Dropping request, piece index {:?} on request message out of bounds, maximal bitfield size is {:?}", piece_index, self.bitfield.len());
+                return false;
+            }
+        }
+    }
+
     /// Sends a message to an already connected peer.
     fn send_message(&self, peer: Peer, message: Message) {
-        log::debug!("Send message: {:?}, to peer: {:?}", peer, message);
+        log::debug!("Send message: {:?}, to peer: {:?}", message, peer);
         self.tcp_handler.send((peer, message));
+        log::debug!("Message sent to peer: {:?}", peer);
     }
 
     /// Tries to initiate a connection with a peer.
@@ -469,7 +545,7 @@ impl StateMachine {
         self.tcp_handler.connect(peer)
     }
 
-    fn send_tracker_request(&mut self) -> Result<(), Error> {
+    fn send_tracker_request(&mut self) -> Result<TrackerResponse, Error> {
         // I think for now it's ok to assume that we either have the whole file or
         // nothing at all when the client starts. We should read from disk to check what
         // is the case and fill `left_to_download` with 0 or torrent_size. Based on that,
@@ -479,31 +555,36 @@ impl StateMachine {
         // TcpHandler module also listen for connections and the Handshake will be received
         // in the function `run` naturally.
         let torrent = &self.torrent;
-        // TODO: read from disk/check integrity to see if we have the whole file or nothing.
-        let left_to_download = torrent.total_length_in_bytes();
+        let left_to_download;
+
+        if self.is_file_on_disk() {
+            left_to_download = 0;
+        } else {
+            left_to_download = torrent.total_length_in_bytes();
+        }
 
         let tracker_request =
             TrackerRequest::from_torrent(torrent, self.client_id(), left_to_download);
         let tracker_address = TrackerAddress::from_torrent(&self.torrent)?;
         log::debug!("Sending tracker request {:?}", tracker_request);
 
-        let response = TrackerRequest::send_request(tracker_request, tracker_address)?;
+        let response = TrackerRequest::send_request(tracker_request, tracker_address);
         log::debug!("Tracker response: {:?}", response);
 
-        // TODO: decide what to do with the tracker response, based on whether or not we'll
-        // need to leech.
+        response
+    }
 
-        // en assumant leecher maintenant
-        match response.peers() {
+    fn fill_peer_list(&mut self, tracker_peer_list: Option<&Vec<Peer>>) -> Result<(), Error> {
+        match tracker_peer_list {
             Some(peers) => {
                 for peer in peers {
                     if peer.socket_address() == "127.0.0.1:6882" {
                         log::warn!("Not adding ourselves to the peer list.");
                         continue;
                     }
-
                     self.seeder_peers.insert(*peer, MyLeecherState::Unconnected);
                 }
+                log::debug!("seeding peers: {:?}", self.seeder_peers);
             }
 
             None => {
@@ -511,7 +592,6 @@ impl StateMachine {
                 return Err(Error::NoPeersAvailable);
             }
         }
-
         Ok(())
     }
 

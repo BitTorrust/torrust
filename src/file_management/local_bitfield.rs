@@ -21,12 +21,7 @@ pub fn local_bitfield(torrent: &Torrent, working_dir: &Path) -> BitVec {
 }
 
 fn read_pieces_from_disk(torrent: &Torrent, working_dir: &Path) -> Vec<Vec<u8>> {
-    let filepath;
-    if working_dir.is_dir() {
-        filepath = working_dir.join(torrent.name());
-    } else {
-        filepath = working_dir.to_path_buf();
-    }
+    let filepath = working_dir.join(torrent.name());
     let piece_length = torrent.piece_length_in_bytes();
     let total_length = torrent.total_length_in_bytes() as usize;
 

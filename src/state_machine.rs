@@ -27,7 +27,7 @@ use identity::generate_random_identity;
 use crate::{
     http::TrackerResponse,
     pieces_selection::{DistributedSelector, PiecesSelection},
-    BlockReaderWriter, FromBytes,
+    BlockReaderWriter,
 };
 
 #[derive(Debug)]
@@ -47,12 +47,10 @@ pub struct StateMachine {
 }
 
 #[derive(Debug, Clone)]
-
 enum MySeederState {
     //Upload states
     WaitingHandshake,
     NotInterestingAndChoking,
-    InterestingAndChoking,
     InterestingAndUnchoking,
 }
 
@@ -463,7 +461,7 @@ impl StateMachine {
     //  peer_bitfield AND !my_bitfield
     // True => Interested
     // False => NotInterested
-    fn is_peer_still_interesting(&self, mut peer: Peer) -> bool {
+    fn is_peer_still_interesting(&self, peer: Peer) -> bool {
         let mut my_bitfield = self.bitfield.clone();
         my_bitfield.negate();
 

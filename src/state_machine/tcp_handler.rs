@@ -76,8 +76,12 @@ impl TcpHandler {
             // Send messages received through TCP to the state machine
             if let Ok(ref mut peers) = peers.try_lock() {
                 for (peer, ref mut session) in peers.iter_mut() {
-                    while let Some(message) = session.receive().unwrap() {
-                        messages_to_send.push((*peer, message));
+                    loop {
+                        match session.receive() {
+                            Ok(Some(message)) => messages_to_send.push((*peer, message)),
+                            Ok(None) => break,
+                            Err(_) => panic!("Unexpected TCP data."),
+                        }
                     }
                 }
             }

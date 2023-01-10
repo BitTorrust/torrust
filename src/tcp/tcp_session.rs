@@ -268,7 +268,11 @@ impl TcpSession {
         // if not handshake, it is a pwp message
         match identity_first_message_type_of(&zero_to_fourth_read_bytes) {
             Ok(message) => self.parse_message(message),
-            Err(error) => Err(error),
+            Err(error) => {
+                log::error!("Unexpected TCP data: {:?}", zero_to_fourth_read_bytes);
+
+                Err(error)
+            }
         }
     }
 }

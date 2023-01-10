@@ -59,6 +59,7 @@ pub enum Error {
     TcpListenerDoesNotExist,
     FailedToCloneSocketHandle,
     FailedToSetSocketAsNonBlocking,
+    FailedToSetSocketWriteTimeout,
 
     // File management error
     DirectoryDoesNotExist,

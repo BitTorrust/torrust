@@ -13,6 +13,7 @@ pub enum Message {
     KeepAlive(pwp::KeepAlive),
     Choke(pwp::Choke),
     Cancel(pwp::Cancel),
+    Port(pwp::Port),
 }
 
 impl IntoBytes for Message {
@@ -29,6 +30,7 @@ impl IntoBytes for Message {
             Message::KeepAlive(m) => m.into_bytes(),
             Message::Choke(m) => m.into_bytes(),
             Message::Cancel(m) => m.into_bytes(),
+            Message::Port(m) => m.into_bytes(),
         }
     }
 }

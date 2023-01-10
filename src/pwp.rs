@@ -1,4 +1,5 @@
 mod bitfield;
+mod cancel;
 mod choke;
 pub(crate) mod from_bytes;
 mod handshake;
@@ -11,11 +12,12 @@ mod message;
 mod message_type;
 mod not_interested;
 mod piece;
+mod port;
 mod request;
 mod unchoke;
-mod cancel;
 
 pub use bitfield::Bitfield;
+pub use cancel::Cancel;
 pub use choke::Choke;
 pub use from_bytes::{identity_first_message_type_of, FromBytes};
 pub use handshake::Handshake;
@@ -28,6 +30,6 @@ pub use message::Message;
 pub use message_type::MessageType;
 pub use not_interested::NotInterested;
 pub use piece::Piece;
+pub use port::Port;
 pub use request::Request;
 pub use unchoke::Unchoke;
-pub use cancel::Cancel;

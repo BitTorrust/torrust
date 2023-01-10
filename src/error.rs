@@ -52,6 +52,8 @@ pub enum Error {
     FailedToParseBitTorrentCancelMessagePieceIndex,
     FailedToParseBitTorrentCancelMessageBeginOffset,
     FailedToParseBitTorrentCancelMessagePieceLength,
+    // For port message
+    FailedToParseBitTorrentPortMessagePieceIndex,
 
     // TCP error
     FailedToConnectToPeer,

@@ -1,16 +1,22 @@
-use crate::{Error, MessageType, Message, Piece, Handshake, FromBytes, Interested, KeepAlive, NotInterested, Choke, Unchoke, Request, Have, Bitfield, Cancel};
+use crate::{
+    Bitfield, Cancel, Choke, Error, FromBytes, Handshake, Have, Interested, KeepAlive, Message,
+    MessageType, NotInterested, Piece, Port, Request, Unchoke,
+};
 
 use super::TcpSession;
-
 
 #[derive(Debug)]
 pub struct MessageParser;
 
 impl MessageParser {
-    fn parse_message_length(tcp_session: &TcpSession, length_field_size: usize) -> Result<u32, Error> {
+    fn parse_message_length(
+        tcp_session: &TcpSession,
+        length_field_size: usize,
+    ) -> Result<u32, Error> {
         let mut peeked_bytes = Vec::new();
         peeked_bytes.resize(length_field_size, 0);
-        tcp_session.stream()
+        tcp_session
+            .stream()
             .peek(&mut peeked_bytes)
             .map_err(|_| Error::FailedToReadFromSocket)?;
         let length = u32::from_be_bytes(
@@ -23,7 +29,10 @@ impl MessageParser {
 
     fn parse_bitfield_message(tcp_session: &TcpSession) -> Result<Option<Message>, Error> {
         // Get bytes size to read from buffer
-        let variable_length = MessageParser::parse_message_length(tcp_session, MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
+        let variable_length = MessageParser::parse_message_length(
+            tcp_session,
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize,
+        )?;
         let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + variable_length;
 
         // Read the entire message from the buffer
@@ -68,8 +77,10 @@ impl MessageParser {
 
     fn parse_piece_message(tcp_session: &TcpSession) -> Result<Option<Message>, Error> {
         // Get bytes size to read from buffer
-        let variable_length =
-            MessageParser::parse_message_length(tcp_session, MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
+        let variable_length = MessageParser::parse_message_length(
+            tcp_session,
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize,
+        )?;
         let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + variable_length;
 
         // Read the entire message from the buffer
@@ -189,7 +200,25 @@ impl MessageParser {
         }
     }
 
-    pub fn parse_message(tcp_session: &TcpSession, message: MessageType) -> Result<Option<Message>, Error> {
+    fn parse_port_message(tcp_session: &TcpSession) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length =
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Port.base_length();
+
+        // Read the entire message from the buffer
+        let port_bytes = tcp_session.read_buffer(message_length as usize)?;
+
+        // Create Port message from bytes
+        match Port::from_bytes(&port_bytes) {
+            Ok(port_and_size) => Ok(Some(Message::Port(port_and_size.0))),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn parse_message(
+        tcp_session: &TcpSession,
+        message: MessageType,
+    ) -> Result<Option<Message>, Error> {
         match message {
             MessageType::Bitfield => MessageParser::parse_bitfield_message(tcp_session),
             MessageType::Choke => MessageParser::parse_choke_message(tcp_session),
@@ -201,6 +230,7 @@ impl MessageParser {
             MessageType::Piece => MessageParser::parse_piece_message(tcp_session),
             MessageType::KeepAlive => MessageParser::parse_keep_alive_message(tcp_session), // never called
             MessageType::Cancel => MessageParser::parse_cancel_message(tcp_session),
+            MessageType::Port => MessageParser::parse_port_message(tcp_session),
         }
     }
 }

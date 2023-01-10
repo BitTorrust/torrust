@@ -63,8 +63,7 @@ impl IntoBytes for Cancel {
 impl FromBytes for Cancel {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Error> {
         if (bytes.len() as u32)
-            < MessageType::Cancel.base_length()
-                + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES
+            < MessageType::Cancel.base_length() + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES
         {
             return Err(Error::BytesArrayTooShort);
         }

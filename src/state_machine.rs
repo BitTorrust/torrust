@@ -4,7 +4,9 @@ use {
         file_management::local_bitfield,
         http::Peer,
         http::{TrackerAddress, TrackerRequest},
-        pwp::{Bitfield, Handshake, Interested, Message, NotInterested, Piece, Request, Unchoke},
+        pwp::{
+            Bitfield, Handshake, Have, Interested, Message, NotInterested, Piece, Request, Unchoke,
+        },
         torrent::{self, Torrent},
     },
     crossbeam_channel::Receiver,
@@ -320,6 +322,12 @@ impl StateMachine {
             Message::Piece(piece) => {
                 self.save_piece(&piece);
                 self.print_download_status(&piece);
+                let piece_index = piece.piece_index();
+
+                if let Some(true) = self.bitfield.get(piece_index as usize) {
+                    let have = Message::Have(Have::new(piece_index));
+                    self.send_message(peer, have);
+                }
 
                 if !self.is_peer_still_interesting(peer) {
                     self.finish_download_with_peer(peer)

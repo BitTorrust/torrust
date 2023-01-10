@@ -1,9 +1,9 @@
 #[cfg(test)]
 pub mod unittest {
-    use crate::pwp::{
+    use crate::{pwp::{
         from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
         MandatoryBitTorrentMessageFields, MessageType, NotInterested, Piece, Request, Unchoke,
-    };
+    }, KeepAlive};
     use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
 
@@ -246,6 +246,26 @@ pub mod unittest {
         );
         assert_eq!(have_to_test.message_type(), expected_have.message_type());
         assert_eq!(have_to_test.piece_index(), expected_have.piece_index());
+    }
+
+    #[test]
+    pub fn keep_alive_message_into_bytes() {
+        let keep_alive_message = KeepAlive::new();
+        let expected_bytes = [0; 4];
+        assert_eq!(keep_alive_message.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn keep_alive_message_from_bytes() {
+        let bytes = [0; 4];
+        let keep_alive_to_test = KeepAlive::from_bytes(&bytes).unwrap().0;
+
+        let expected_keep_alive = KeepAlive::new();
+
+        assert_eq!(
+            keep_alive_to_test.message_length(),
+            expected_keep_alive.message_length()
+        );
     }
 
     #[test]

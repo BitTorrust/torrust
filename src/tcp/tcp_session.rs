@@ -191,6 +191,23 @@ impl TcpSession {
         }
     }
 
+    fn parse_keep_alive_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length =
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::KeepAlive.base_length();
+
+        // Read the entire message from the buffer
+        let not_interested_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Interested message from bytes
+        match KeepAlive::from_bytes(&not_interested_bytes) {
+            Ok(not_interested_and_size) => {
+                Ok(Some(Message::KeepAlive(not_interested_and_size.0)))
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
     fn parse_not_interested_message(&self) -> Result<Option<Message>, Error> {
         // Get bytes size to read
         let message_length =
@@ -217,6 +234,7 @@ impl TcpSession {
             MessageType::Have => self.parse_have_message(),
             MessageType::Request => self.parse_request_message(),
             MessageType::Piece => self.parse_piece_message(),
+            MessageType::KeepAlive => self.parse_keep_alive_message(),          // never called
         }
     }
 

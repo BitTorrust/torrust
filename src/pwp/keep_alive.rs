@@ -40,6 +40,7 @@ impl IntoBytes for KeepAlive {
 
 impl FromBytes for KeepAlive {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Error> {
+        println!("bytes.len() {}", bytes.len());
         if (bytes.len() as u32)
             < MessageType::KeepAlive.base_length()
                 + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES
@@ -52,7 +53,7 @@ impl FromBytes for KeepAlive {
                 .try_into()
                 .map_err(|_| Error::FailedToParseBitTorrentMessageLength)?,
         );
-        if message_length != MessageType::Interested.base_length() {
+        if message_length != MessageType::KeepAlive.base_length() {
             return Err(Error::MessageLengthDoesNotMatchWithExpectedOne);
         }
 

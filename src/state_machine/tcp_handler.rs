@@ -99,13 +99,10 @@ impl TcpHandler {
         log::info!("Thread TcpSender started.");
 
         while let Ok((peer, message)) = tcp_receiver.recv() {
-            peers
-                .lock()
-                .unwrap()
-                .get(&peer)
-                .unwrap()
-                .send(message)
-                .unwrap();
+            let result = peers.lock().unwrap().get(&peer).unwrap().send(message);
+            if let Err(_) = result {
+                log::warn!("Connection with {:?} is broken.", peer);
+            }
         }
 
         log::info!("Thread TcpSender exited.");

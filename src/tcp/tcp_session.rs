@@ -83,7 +83,7 @@ impl TcpSession {
     fn parse_bitfield_message(&self) -> Result<Option<Message>, Error> {
         // Get bytes size to read from buffer
         let variable_length =
-            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
+            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)? - 1;
         let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE
             + MessageType::Bitfield.base_length()
             + variable_length;

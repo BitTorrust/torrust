@@ -469,7 +469,7 @@ impl StateMachine {
     }
 
     fn finish_download_with_peer(&mut self, peer: Peer) {
-        log::info!("Peer {:?} sent all the pieces we needed from it.", peer);
+        log::info!("{:?} sent all the pieces we needed from it.", peer);
         self.send_not_interested_message(peer);
         self.seeder_peers
             .insert(peer, MyLeecherState::NotInterestedAndUnchoked);
@@ -527,9 +527,7 @@ impl StateMachine {
 
     /// Sends a message to an already connected peer.
     fn send_message(&self, peer: Peer, message: Message) {
-        log::debug!("Send message: {:?}, to peer: {:?}", message, peer);
         self.tcp_handler.send((peer, message));
-        log::debug!("Message sent to peer: {:?}", peer);
     }
 
     /// Tries to initiate a connection with a peer.

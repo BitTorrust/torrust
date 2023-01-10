@@ -318,7 +318,8 @@ impl StateMachine {
     fn handle_piece(&mut self, peer: Peer, message: Message) {
         match message {
             Message::Piece(piece) => {
-                self.save_piece(piece);
+                self.save_piece(&piece);
+                self.print_download_status(&piece);
 
                 if !self.is_peer_still_interesting(peer) {
                     self.finish_download_with_peer(peer)
@@ -329,7 +330,26 @@ impl StateMachine {
         }
     }
 
-    fn save_piece(&mut self, piece: Piece) {
+    fn print_download_status(&self, piece: &Piece) {
+        log::debug!(
+            "Received piece {}@{:x}",
+            piece.piece_index(),
+            piece.begin_offset_of_piece()
+        );
+
+        let expected_pieces = self.torrent.number_of_pieces() as usize;
+        let received_pieces = self.bitfield.iter().filter(|p| *p).count();
+        let percent = (received_pieces as f32 / expected_pieces as f32) * 100.0;
+
+        log::info!(
+            "Downloaded {}/{} [{:.2}%]",
+            received_pieces,
+            expected_pieces,
+            percent
+        )
+    }
+
+    fn save_piece(&mut self, piece: &Piece) {
         self.block_reader_writer
             .write(
                 piece.piece_index(),
@@ -340,11 +360,23 @@ impl StateMachine {
 
         if let Some(blocks) = self.blocks_by_piece.get_mut(&piece.piece_index()) {
             *blocks = *blocks + 1;
-            if *blocks
-                == self.torrent.piece_length_in_bytes() as usize
-                    / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
-                    - 1
-            {
+
+            let expected_blocks_in_piece =
+                if piece.piece_index() == self.torrent.number_of_pieces() - 1 {
+                    let torrent_length = self.torrent.total_length_in_bytes();
+                    let last_piece_size = torrent_length % self.torrent.piece_length_in_bytes();
+                    torrent::div_ceil(
+                        last_piece_size,
+                        BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+                    ) as usize
+                        - 1
+                } else {
+                    self.torrent.piece_length_in_bytes() as usize
+                        / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
+                        - 1
+                };
+
+            if *blocks == expected_blocks_in_piece {
                 self.bitfield.set(piece.piece_index() as usize, true);
             }
         } else {

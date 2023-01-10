@@ -167,17 +167,22 @@ pub fn div_ceil(a: u32, b: u32) -> u32 {
 }
 
 pub fn expected_blocks_in_piece(piece_index: u32, torrent: &Torrent) -> usize {
-    if piece_index == torrent.number_of_pieces() - 1 {
-        let torrent_length = torrent.total_length_in_bytes();
-        let last_piece_size = torrent_length % torrent.piece_length_in_bytes();
-        div_ceil(
-            last_piece_size,
-            BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
-        ) as usize
-            - 1
+    let torrent_length = torrent.total_length_in_bytes();
+    let piece_length = torrent.piece_length_in_bytes();
+
+    if torrent_length % piece_length == 0 {
+        piece_length as usize / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE
     } else {
-        torrent.piece_length_in_bytes() as usize
-            / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
-            - 1
+        if piece_index == torrent.number_of_pieces() - 1 {
+            let torrent_length = torrent.total_length_in_bytes();
+            let last_piece_size = torrent_length % torrent.piece_length_in_bytes();
+            div_ceil(
+                last_piece_size,
+                BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+            ) as usize
+        } else {
+            torrent.piece_length_in_bytes() as usize
+                / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
+        }
     }
 }

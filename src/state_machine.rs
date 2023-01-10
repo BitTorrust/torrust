@@ -375,7 +375,7 @@ impl StateMachine {
             *blocks = *blocks + 1;
 
             let expected_blocks_in_piece =
-                torrent::expected_blocks_in_piece(piece.piece_index(), &self.torrent);
+                torrent::expected_blocks_in_piece(piece.piece_index(), &self.torrent) - 1;
 
             if *blocks == expected_blocks_in_piece {
                 self.bitfield.set(piece.piece_index() as usize, true);

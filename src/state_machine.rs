@@ -306,6 +306,13 @@ impl StateMachine {
                 length,
             );
 
+            log::info!(
+                "Requesting piece {:?}@0x{:x} to {:?}",
+                piece_index,
+                block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+                peer
+            );
+
             self.send_message(peer, Message::Request(request));
         }
 

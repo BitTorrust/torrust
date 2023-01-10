@@ -72,14 +72,20 @@ impl TcpHandler {
         thread::spawn(move || TcpHandler::tcp_sender(peers_ref, tcp_receiver));
 
         loop {
+            let mut messages_to_send = Vec::new();
             // Send messages received through TCP to the state machine
             if let Ok(ref mut peers) = peers.try_lock() {
                 for (peer, ref mut session) in peers.iter_mut() {
                     while let Some(message) = session.receive().unwrap() {
-                        message_sender.send((*peer, message)).unwrap();
+                        messages_to_send.push((*peer, message));
                     }
                 }
             }
+
+            // Make sure to call send only after dropping the lock, otherwise we may deadlock.
+            messages_to_send
+                .into_iter()
+                .for_each(|(peer, message)| message_sender.send((peer, message)).unwrap());
 
             wait_mechanism.wait();
         }

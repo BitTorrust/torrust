@@ -153,9 +153,10 @@ impl StateMachine {
 
     fn handle_current_downloads(&mut self) {
         // TODO: uncomment to support passive connections
-        // if self.is_file_on_disk() {
-        //     return;
-        // }
+        if self.is_file_on_disk() {
+            return;
+        }
+
         let selector = DistributedSelector::pieces_selection(
             self.bitfield.clone(),
             self.peers_bitfield.clone(),
@@ -434,9 +435,9 @@ impl StateMachine {
                 let maybe_response = self.send_tracker_request();
                 if let Ok(response) = maybe_response {
                     // TODO: uncomment to support passive connections
-                    // if !(self.is_file_on_disk()) {
-                    self.fill_peer_list(response.peers()).unwrap();
-                    // }
+                    if !(self.is_file_on_disk()) {
+                        self.fill_peer_list(response.peers()).unwrap();
+                    }
 
                     break;
                 } else {

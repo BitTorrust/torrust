@@ -15,7 +15,7 @@ impl TrackerAddress {
 
     pub fn from_url(url: Url) -> Result<Self, Error> {
         let host = url.host().ok_or(Error::TrackerHostNotProvided)?.to_string();
-        let port = url.port().ok_or(Error::TrackerPortNotProvided)?;
+        let port = url.port().or_else(|| Some(80)).unwrap();
 
         Ok(Self { host, port })
     }

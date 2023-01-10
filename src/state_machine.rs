@@ -110,6 +110,8 @@ impl StateMachine {
     }
 
     pub fn run(&mut self) {
+        log::info!("Starting main loop");
+
         if self.is_file_on_disk() {
             log::info!("File already on disk");
         }
@@ -461,15 +463,18 @@ impl StateMachine {
             self.mock_peers();
         } else {
             loop {
-                let maybe_response = self.send_tracker_request();
-                if let Ok(response) = maybe_response {
-                    if !(self.is_file_on_disk()) {
-                        self.fill_peer_list(response.peers()).unwrap();
-                    }
+                match self.send_tracker_request() {
+                    Ok(response) => {
+                        if !(self.is_file_on_disk()) {
+                            self.fill_peer_list(response.peers()).unwrap();
+                        }
 
-                    break;
-                } else {
-                    thread::sleep(Duration::from_secs(1))
+                        break;
+                    }
+                    Err(e) => {
+                        log::error!("{:?}", e);
+                        thread::sleep(Duration::from_secs(1))
+                    }
                 }
             }
         }
@@ -576,13 +581,11 @@ impl StateMachine {
         // TcpHandler module also listen for connections and the Handshake will be received
         // in the function `run` naturally.
         let torrent = &self.torrent;
-        let left_to_download;
-
-        if self.is_file_on_disk() {
-            left_to_download = 0;
+        let left_to_download = if self.is_file_on_disk() {
+            0
         } else {
-            left_to_download = torrent.total_length_in_bytes();
-        }
+            torrent.total_length_in_bytes()
+        };
 
         let tracker_request =
             TrackerRequest::from_torrent(torrent, self.client_id(), left_to_download);

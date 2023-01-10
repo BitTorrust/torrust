@@ -72,14 +72,24 @@ impl TcpHandler {
         thread::spawn(move || TcpHandler::tcp_sender(peers_ref, tcp_receiver));
 
         loop {
+            let mut messages_to_send = Vec::new();
             // Send messages received through TCP to the state machine
             if let Ok(ref mut peers) = peers.try_lock() {
                 for (peer, ref mut session) in peers.iter_mut() {
-                    while let Some(message) = session.receive().unwrap() {
-                        message_sender.send((*peer, message)).unwrap();
+                    loop {
+                        match session.receive() {
+                            Ok(Some(message)) => messages_to_send.push((*peer, message)),
+                            Ok(None) => break,
+                            Err(_) => panic!("Unexpected TCP data."),
+                        }
                     }
                 }
             }
+
+            // Make sure to call send only after dropping the lock, otherwise we may deadlock.
+            messages_to_send
+                .into_iter()
+                .for_each(|(peer, message)| message_sender.send((peer, message)).unwrap());
 
             wait_mechanism.wait();
         }
@@ -93,13 +103,10 @@ impl TcpHandler {
         log::info!("Thread TcpSender started.");
 
         while let Ok((peer, message)) = tcp_receiver.recv() {
-            peers
-                .lock()
-                .unwrap()
-                .get(&peer)
-                .unwrap()
-                .send(message)
-                .unwrap();
+            let result = peers.lock().unwrap().get(&peer).unwrap().send(message);
+            if let Err(_) = result {
+                log::warn!("Connection with {:?} is broken.", peer);
+            }
         }
 
         log::info!("Thread TcpSender exited.");

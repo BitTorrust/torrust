@@ -29,12 +29,13 @@ fn read_pieces_from_disk(torrent: &Torrent, working_dir: &Path) -> Vec<Vec<u8>> 
     let piece_length = piece_length as usize;
     let total_pieces = torrent::div_ceil(total_length as u32, piece_length as u32);
 
-    let blocks_per_piece = piece_length / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE;
     let mut pieces = Vec::new();
     for piece_id in 0..total_pieces {
         let mut piece = Vec::new();
 
-        for block_id in 0..blocks_per_piece {
+        let blocks_per_piece = torrent::expected_blocks_in_piece(piece_id, torrent);
+
+        for block_id in 0..(blocks_per_piece - 1) {
             let maybe_block = reader_writer.read(
                 piece_id as u32,
                 block_id as u32 * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,

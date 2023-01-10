@@ -44,6 +44,10 @@ impl TcpSession {
         stream
             .set_write_timeout(Some(Duration::from_millis(100)))
             .map_err(|_| Error::FailedToSetSocketWriteTimeout)?;
+        // Disable Nagle Algorithm (useful for debugging now)
+        stream
+            .set_nodelay(true)
+            .map_err(|_| Error::FailedToSetSocketAsNonBlocking)?;
 
         Ok(())
     }
@@ -83,7 +87,7 @@ impl TcpSession {
     fn parse_bitfield_message(&self) -> Result<Option<Message>, Error> {
         // Get bytes size to read from buffer
         let variable_length =
-            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
+            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)? - 1;
         let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE
             + MessageType::Bitfield.base_length()
             + variable_length;
@@ -264,7 +268,11 @@ impl TcpSession {
         // if not handshake, it is a pwp message
         match identity_first_message_type_of(&zero_to_fourth_read_bytes) {
             Ok(message) => self.parse_message(message),
-            Err(error) => Err(error),
+            Err(error) => {
+                log::error!("Unexpected TCP data: {:?}", zero_to_fourth_read_bytes);
+
+                Err(error)
+            }
         }
     }
 }

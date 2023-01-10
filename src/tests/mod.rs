@@ -18,3 +18,6 @@ pub mod state_machine;
 
 #[cfg(test)]
 pub mod pieces_selection;
+
+#[cfg(test)]
+pub mod rarest_pieces_selection;

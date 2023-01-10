@@ -44,6 +44,10 @@ impl TcpSession {
         stream
             .set_write_timeout(Some(Duration::from_millis(100)))
             .map_err(|_| Error::FailedToSetSocketWriteTimeout)?;
+        // Disable Nagle Algorithm (useful for debugging now)
+        stream
+            .set_nodelay(true)
+            .map_err(|_| Error::FailedToSetSocketAsNonBlocking)?;
 
         Ok(())
     }

@@ -117,10 +117,6 @@ impl StateMachine {
         self.connect_to_tracker();
 
         loop {
-            if self.is_file_on_disk() {
-                break;
-            }
-
             self.handle_current_downloads();
 
             if let Ok((peer, message)) = self.message_receiver.recv() {

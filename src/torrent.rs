@@ -1,3 +1,4 @@
+use crate::file_management::BlockReaderWriter;
 use crate::Error;
 use bendy::decoding::{Decoder, DictDecoder, Object};
 use sha1::{Digest, Sha1};
@@ -163,4 +164,20 @@ impl Torrent {
 
 pub fn div_ceil(a: u32, b: u32) -> u32 {
     a / b + if a % b == 0 { 0 } else { 1 }
+}
+
+pub fn expected_blocks_in_piece(piece_index: u32, torrent: &Torrent) -> usize {
+    if piece_index == torrent.number_of_pieces() - 1 {
+        let torrent_length = torrent.total_length_in_bytes();
+        let last_piece_size = torrent_length % torrent.piece_length_in_bytes();
+        div_ceil(
+            last_piece_size,
+            BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+        ) as usize
+            - 1
+    } else {
+        torrent.piece_length_in_bytes() as usize
+            / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
+            - 1
+    }
 }

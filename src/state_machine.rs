@@ -373,19 +373,7 @@ impl StateMachine {
             *blocks = *blocks + 1;
 
             let expected_blocks_in_piece =
-                if piece.piece_index() == self.torrent.number_of_pieces() - 1 {
-                    let torrent_length = self.torrent.total_length_in_bytes();
-                    let last_piece_size = torrent_length % self.torrent.piece_length_in_bytes();
-                    torrent::div_ceil(
-                        last_piece_size,
-                        BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
-                    ) as usize
-                        - 1
-                } else {
-                    self.torrent.piece_length_in_bytes() as usize
-                        / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
-                        - 1
-                };
+                torrent::expected_blocks_in_piece(piece.piece_index(), &self.torrent);
 
             if *blocks == expected_blocks_in_piece {
                 self.bitfield.set(piece.piece_index() as usize, true);

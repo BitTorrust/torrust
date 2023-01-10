@@ -174,15 +174,13 @@ pub fn expected_blocks_in_piece(piece_index: u32, torrent: &Torrent) -> usize {
         piece_length as usize / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE
     } else {
         if piece_index == torrent.number_of_pieces() - 1 {
-            let torrent_length = torrent.total_length_in_bytes();
             let last_piece_size = torrent_length % torrent.piece_length_in_bytes();
             div_ceil(
                 last_piece_size,
                 BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
             ) as usize
         } else {
-            torrent.piece_length_in_bytes() as usize
-                / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as usize
+            piece_length as usize / BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE
         }
     }
 }

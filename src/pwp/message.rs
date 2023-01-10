@@ -10,7 +10,10 @@ pub enum Message {
     Piece(pwp::Piece),
     Request(pwp::Request),
     Unchoke(pwp::Unchoke),
-    KeepAlive,
+    KeepAlive(pwp::KeepAlive),
+    Choke(pwp::Choke),
+    Cancel(pwp::Cancel),
+    Port(pwp::Port),
 }
 
 impl IntoBytes for Message {
@@ -24,7 +27,10 @@ impl IntoBytes for Message {
             Message::Piece(m) => m.into_bytes(),
             Message::Request(m) => m.into_bytes(),
             Message::Unchoke(m) => m.into_bytes(),
-            Message::KeepAlive => unimplemented!("IntoBytes not yet implemented for KeepAlive"),
+            Message::KeepAlive(m) => m.into_bytes(),
+            Message::Choke(m) => m.into_bytes(),
+            Message::Cancel(m) => m.into_bytes(),
+            Message::Port(m) => m.into_bytes(),
         }
     }
 }

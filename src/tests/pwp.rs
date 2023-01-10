@@ -1,8 +1,11 @@
 #[cfg(test)]
 pub mod unittest {
-    use crate::pwp::{
-        from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
-        MandatoryBitTorrentMessageFields, MessageType, NotInterested, Piece, Request, Unchoke,
+    use crate::{
+        pwp::{
+            from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
+            MandatoryBitTorrentMessageFields, MessageType, NotInterested, Piece, Request, Unchoke,
+        },
+        Cancel, Choke, KeepAlive, Port,
     };
     use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
@@ -249,6 +252,106 @@ pub mod unittest {
     }
 
     #[test]
+    pub fn keep_alive_message_into_bytes() {
+        let keep_alive_message = KeepAlive::new();
+        let expected_bytes = [0; 4];
+        assert_eq!(keep_alive_message.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn keep_alive_message_from_bytes() {
+        let bytes = [0; 4];
+        let keep_alive_to_test = KeepAlive::from_bytes(&bytes).unwrap().0;
+
+        let expected_keep_alive = KeepAlive::new();
+
+        assert_eq!(
+            keep_alive_to_test.message_length(),
+            expected_keep_alive.message_length()
+        );
+    }
+
+    #[test]
+    pub fn choke_message_into_bytes() {
+        let choke_message = Choke::new();
+        let expected_bytes = [0, 0, 0, 1, 0];
+        assert_eq!(choke_message.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn choke_message_from_bytes() {
+        let bytes = [0, 0, 0, 1, 0];
+        let choke_to_test = Choke::from_bytes(&bytes).unwrap().0;
+
+        let expected_choke = Choke::new();
+
+        assert_eq!(
+            choke_to_test.message_length(),
+            expected_choke.message_length()
+        );
+        assert_eq!(choke_to_test.message_type(), expected_choke.message_type());
+    }
+
+    #[test]
+    pub fn cancel_message_into_bytes() {
+        let cancel_message_to_test = Cancel::new(1, 2, 3);
+        let expected_bytes = [0, 0, 0, 13, 8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3];
+        assert_eq!(cancel_message_to_test.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn cancel_message_from_bytes() {
+        let request_bytes = [0, 0, 0, 13, 8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3];
+        let request_message_to_test = Cancel::from_bytes(&request_bytes).unwrap().0;
+
+        let expected_request = Cancel::new(1, 2, 3);
+
+        assert_eq!(
+            request_message_to_test.message_length(),
+            expected_request.message_length()
+        );
+        assert_eq!(
+            request_message_to_test.message_type(),
+            expected_request.message_type()
+        );
+        assert_eq!(
+            request_message_to_test.piece_index(),
+            expected_request.piece_index()
+        );
+        assert_eq!(
+            request_message_to_test.begin_offset(),
+            expected_request.begin_offset()
+        );
+        assert_eq!(
+            request_message_to_test.piece_length(),
+            expected_request.piece_length()
+        );
+    }
+
+    #[test]
+    pub fn port_message_into_bytes() {
+        let port_message = Port::new(2);
+        let expected_bytes = [0, 0, 0, 3, 9, 0, 2];
+
+        assert_eq!(port_message.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn port_message_from_bytes() {
+        let bytes = [0, 0, 0, 3, 9, 0, 1];
+        let have_to_test = Port::from_bytes(&bytes).unwrap().0;
+
+        let expected_have = Port::new(0x1);
+
+        assert_eq!(
+            have_to_test.message_length(),
+            expected_have.message_length()
+        );
+        assert_eq!(have_to_test.message_type(), expected_have.message_type());
+        assert_eq!(have_to_test.listen_port(), expected_have.listen_port());
+    }
+
+    #[test]
     pub fn identify_bitfield_message_type_from_bytes() {
         let bytes = read_bytes_from(&path_build_to_pwp_message("bitfield.bin"));
         let bitfield_message_type_to_test =
@@ -296,5 +399,26 @@ pub mod unittest {
         let bytes = read_bytes_from(&path_build_to_pwp_message("unchoke.bin"));
         let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
         assert_eq!(message_type_to_test, MessageType::Unchoke);
+    }
+
+    #[test]
+    pub fn identify_choke_message_type_from_bytes() {
+        let bytes = [0, 0, 0, 1, 0];
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Choke);
+    }
+
+    #[test]
+    pub fn identify_cancel_message_type_from_bytes() {
+        let bytes = [0, 0, 0, 13, 8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3];
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Cancel);
+    }
+
+    #[test]
+    pub fn identify_port_message_type_from_bytes() {
+        let bytes = [0, 0, 0, 3, 9, 0, 2];
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Port);
     }
 }

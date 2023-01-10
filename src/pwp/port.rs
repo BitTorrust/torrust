@@ -2,20 +2,21 @@ use crate::pwp::{from_bytes, FromBytes, IntoBytes, MandatoryBitTorrentMessageFie
 use crate::Error;
 
 #[derive(Debug)]
-pub struct Have {
+pub struct Port {
     message_length: u32,
     message_type: u8,
-    piece_index: u32,
+    listen_port: u16,
 }
 
-impl Have {
-    pub fn new(piece_index: u32) -> Self {
+impl Port {
+    pub fn new(listen_port: u16) -> Self {
         Self {
-            message_length: MessageType::Have.base_length(),
-            message_type: MessageType::Have.id(),
-            piece_index,
+            message_length: MessageType::Port.base_length(),
+            message_type: MessageType::Port.id(),
+            listen_port,
         }
     }
+
     pub fn message_length(&self) -> u32 {
         self.message_length
     }
@@ -24,12 +25,12 @@ impl Have {
         self.message_type
     }
 
-    pub fn piece_index(&self) -> u32 {
-        self.piece_index
+    pub fn listen_port(&self) -> u16 {
+        self.listen_port
     }
 }
 
-impl MandatoryBitTorrentMessageFields for Have {
+impl MandatoryBitTorrentMessageFields for Port {
     fn message_length(&self) -> u32 {
         self.message_length
     }
@@ -39,20 +40,20 @@ impl MandatoryBitTorrentMessageFields for Have {
     }
 }
 
-impl IntoBytes for Have {
+impl IntoBytes for Port {
     fn into_bytes(self) -> Vec<u8> {
         let mut serialized_message: Vec<u8> = Vec::new();
         serialized_message.extend(self.message_length.to_be_bytes());
         serialized_message.push(self.message_type);
-        serialized_message.extend(self.piece_index.to_be_bytes());
+        serialized_message.extend(self.listen_port.to_be_bytes());
         serialized_message
     }
 }
 
-impl FromBytes for Have {
+impl FromBytes for Port {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Error> {
         if (bytes.len() as u32)
-            < (MessageType::Have.base_length() + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES)
+            < (MessageType::Port.base_length() + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES)
         {
             return Err(Error::BytesArrayTooShort);
         }
@@ -62,26 +63,26 @@ impl FromBytes for Have {
                 .try_into()
                 .map_err(|_| Error::FailedToParseBitTorrentMessageLength)?,
         );
-        if message_length != MessageType::Have.base_length() {
+        if message_length != MessageType::Port.base_length() {
             return Err(Error::MessageLengthDoesNotMatchWithExpectedOne);
         }
 
         let message_type = bytes[4];
-        if message_type != MessageType::Have.id() {
+        if message_type != MessageType::Port.id() {
             return Err(Error::MessageTypeDoesNotMatchWithExpectedOne);
         }
 
-        let piece_index = u32::from_be_bytes(
-            bytes[5..9]
+        let listen_port = u16::from_be_bytes(
+            bytes[5..7]
                 .try_into()
-                .map_err(|_| Error::FailedToParseBitTorrentHaveMessagePieceIndex)?,
+                .map_err(|_| Error::FailedToParseBitTorrentPortMessagePieceIndex)?,
         );
 
         Ok((
             Self {
                 message_length,
                 message_type,
-                piece_index,
+                listen_port,
             },
             (message_length + from_bytes::PWP_MESSAGE_LENGTH_FIELD_SIZE_IN_BYTES) as usize,
         ))

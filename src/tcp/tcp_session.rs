@@ -1,7 +1,7 @@
-use crate::pwp::{
+use crate::{pwp::{
     identity_first_message_type_of, Bitfield, FromBytes, Handshake, Have, Interested, MessageType,
     NotInterested, Piece, Request, Unchoke,
-};
+}, KeepAlive};
 
 use {
     crate::{
@@ -237,7 +237,7 @@ impl TcpSession {
         // Keep alive (PWP protocol) handling
         if zero_to_third_read_bytes == [0, 0, 0, 0] {
             // Keep alive message case
-            return Ok(Some(Message::KeepAlive));
+            return Ok(Some(Message::KeepAlive(KeepAlive::new())));
         }
 
         // Handshake handling

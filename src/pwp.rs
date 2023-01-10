@@ -11,6 +11,7 @@ mod not_interested;
 mod piece;
 mod request;
 mod unchoke;
+mod keep_alive;
 
 pub use bitfield::Bitfield;
 pub use from_bytes::{identity_first_message_type_of, FromBytes};
@@ -25,3 +26,4 @@ pub use not_interested::NotInterested;
 pub use piece::Piece;
 pub use request::Request;
 pub use unchoke::Unchoke;
+pub use keep_alive::KeepAlive;

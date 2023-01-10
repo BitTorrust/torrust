@@ -13,6 +13,7 @@ mod not_interested;
 mod piece;
 mod request;
 mod unchoke;
+mod cancel;
 
 pub use bitfield::Bitfield;
 pub use choke::Choke;
@@ -29,3 +30,4 @@ pub use not_interested::NotInterested;
 pub use piece::Piece;
 pub use request::Request;
 pub use unchoke::Unchoke;
+pub use cancel::Cancel;

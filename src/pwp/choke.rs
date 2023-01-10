@@ -1,7 +1,7 @@
 use crate::pwp::{from_bytes, FromBytes, IntoBytes, MandatoryBitTorrentMessageFields, MessageType};
 use crate::Error;
 
-/// unchoke: <len=0001><id=1>
+/// choke: <len=0001><id=0>
 #[derive(Debug)]
 pub struct Choke {
     message_length: u32,

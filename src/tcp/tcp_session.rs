@@ -6,6 +6,8 @@ use crate::{
     Choke, KeepAlive,
 };
 
+use super::MessageParser;
+
 use {
     crate::{
         http::Peer,
@@ -55,7 +57,7 @@ impl TcpSession {
         Ok(())
     }
 
-    fn stream(&self) -> &TcpStream {
+    pub fn stream(&self) -> &TcpStream {
         &self.stream
     }
 
@@ -64,195 +66,13 @@ impl TcpSession {
         self.stream().write(&(bittorrent_message.into_bytes()))
     }
 
-    fn parse_message_length(&self, length_field_size: usize) -> Result<u32, Error> {
-        let mut length_bytes = Vec::new();
-        length_bytes.resize(length_field_size, 0);
-        self.stream()
-            .peek(&mut length_bytes)
-            .map_err(|_| Error::FailedToReadFromSocket)?;
-        let length = u32::from_be_bytes(
-            length_bytes[0..length_field_size]
-                .try_into()
-                .map_err(|_| Error::FailedToParseLengthFieldSize)?,
-        );
-        Ok(length)
-    }
-
-    fn read_buffer(&self, size: usize) -> Result<Vec<u8>, Error> {
+    pub fn read_buffer(&self, size: usize) -> Result<Vec<u8>, Error> {
         let mut bytes: Vec<u8> = Vec::new();
         bytes.resize(size as usize, 0);
         self.stream()
             .read(&mut bytes)
             .map_err(|_| Error::FailedToReadFromSocket)?;
         Ok(bytes)
-    }
-
-    fn parse_bitfield_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read from buffer
-        let variable_length =
-            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
-        let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + variable_length;
-
-        // Read the entire message from the buffer
-        let bitfield_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Bitfield message from bytes
-        match Bitfield::from_bytes(&bitfield_bytes) {
-            Ok(bitfield_and_size) => Ok(Some(Message::Bitfield(bitfield_and_size.0))),
-            Err(error) => Err(error),
-        }
-    }
-
-    fn parse_have_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length =
-            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Have.base_length();
-
-        // Read the entire message from the buffer
-        let have_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Have message from bytes
-        match Have::from_bytes(&have_bytes) {
-            Ok(have_and_size) => Ok(Some(Message::Have(have_and_size.0))),
-            Err(error) => Err(error),
-        }
-    }
-
-    fn parse_request_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length =
-            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Request.base_length();
-
-        // Read the entire message from the buffer
-        let request_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Request message from bytes
-        match Request::from_bytes(&request_bytes) {
-            Ok(request_and_size) => Ok(Some(Message::Request(request_and_size.0))),
-            Err(error) => Err(error),
-        }
-    }
-
-    fn parse_piece_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read from buffer
-        let variable_length =
-            self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)?;
-        let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + variable_length;
-
-        // Read the entire message from the buffer
-        let piece_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Piece message from bytes
-        match Piece::from_bytes(&piece_bytes) {
-            Ok(piece_and_size) => Ok(Some(Message::Piece(piece_and_size.0))),
-            Err(error) => Err(error),
-        }
-    }
-
-    fn parse_handshake_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length = Handshake::HANDSHAKE_VERSION_1_MESSAGE_LENGTH;
-
-        // Read the entire message from the buffer
-        let handshake_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Handshake message from bytes
-        let handshake = match Handshake::from_bytes(&handshake_bytes) {
-            Ok(handshake_and_size) => handshake_and_size.0,
-            Err(error) => return Err(error),
-        };
-        Ok(Some(Message::Handshake(handshake)))
-    }
-
-    fn parse_unchoke_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length =
-            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Unchoke.base_length();
-
-        // Read the entire message from the buffer
-        let unchoke_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Unchoke message from bytes
-        match Unchoke::from_bytes(&unchoke_bytes) {
-            Ok(unchoke_and_size) => Ok(Some(Message::Unchoke(unchoke_and_size.0))),
-            Err(error) => return Err(error),
-        }
-    }
-
-    fn parse_interested_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length =
-            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Interested.base_length();
-
-        // Read the entire message from the buffer
-        let interested_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Interested message from bytes
-        match Interested::from_bytes(&interested_bytes) {
-            Ok(interested_and_size) => Ok(Some(Message::Interested(interested_and_size.0))),
-            Err(error) => return Err(error),
-        }
-    }
-
-    fn parse_keep_alive_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length =
-            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::KeepAlive.base_length();
-
-        // Read the entire message from the buffer
-        let keep_alive_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Keep-Alive message from bytes
-        match KeepAlive::from_bytes(&keep_alive_bytes) {
-            Ok(keep_alive_and_size) => Ok(Some(Message::KeepAlive(keep_alive_and_size.0))),
-            Err(error) => return Err(error),
-        }
-    }
-
-    fn parse_not_interested_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length =
-            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::NotInterested.base_length();
-
-        // Read the entire message from the buffer
-        let not_interested_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Interested message from bytes
-        match NotInterested::from_bytes(&not_interested_bytes) {
-            Ok(not_interested_and_size) => {
-                Ok(Some(Message::NotInterested(not_interested_and_size.0)))
-            }
-            Err(error) => return Err(error),
-        }
-    }
-
-    fn parse_choke_message(&self) -> Result<Option<Message>, Error> {
-        // Get bytes size to read
-        let message_length =
-            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Choke.base_length();
-
-        // Read the entire message from the buffer
-        let choke_bytes = self.read_buffer(message_length as usize)?;
-
-        // Create Choke message from bytes
-        match Choke::from_bytes(&choke_bytes) {
-            Ok(choke_and_size) => Ok(Some(Message::Choke(choke_and_size.0))),
-            Err(error) => return Err(error),
-        }
-    }
-
-    fn parse_message(&self, message: MessageType) -> Result<Option<Message>, Error> {
-        match message {
-            MessageType::Bitfield => self.parse_bitfield_message(),
-            MessageType::Choke => self.parse_choke_message(),
-            MessageType::Unchoke => self.parse_unchoke_message(),
-            MessageType::Interested => self.parse_interested_message(),
-            MessageType::NotInterested => self.parse_not_interested_message(),
-            MessageType::Have => self.parse_have_message(),
-            MessageType::Request => self.parse_request_message(),
-            MessageType::Piece => self.parse_piece_message(),
-            MessageType::KeepAlive => self.parse_keep_alive_message(), // never called
-        }
     }
 
     /// Write the received bytes in the buffer
@@ -295,13 +115,13 @@ impl TcpSession {
             handshake_protocol_name.next().unwrap() as u8,
         ];
         if zero_to_fourth_read_bytes == expected_four_first_byte_of_handshake {
-            return self.parse_handshake_message();
+            return MessageParser::parse_handshake_message(&self);
         }
 
         // PWP messages
         // if not handshake, it is probably a Peer Wire Protocol message
         match identity_first_message_type_of(&zero_to_fourth_read_bytes) {
-            Ok(message) => self.parse_message(message),
+            Ok(message) => MessageParser::parse_message(&self, message),
             Err(error) => {
                 log::error!("Unexpected TCP data: {:?}", zero_to_fourth_read_bytes);
 

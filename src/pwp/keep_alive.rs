@@ -2,7 +2,7 @@ use crate::{
     from_bytes, Error, FromBytes, IntoBytes, MandatoryBitTorrentMessageFields, MessageType,
 };
 
-// interested: <len=0001><id=2>
+// keep-alive: <len=0000>
 #[derive(Debug)]
 pub struct KeepAlive {
     message_length: u32,

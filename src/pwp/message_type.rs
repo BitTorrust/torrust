@@ -11,6 +11,7 @@ pub enum MessageType {
     Piece,
     Choke,
     KeepAlive,
+    Cancel,
 }
 
 // Documentation for message: https://wiki.theory.org/BitTorrentSpecification#Messages
@@ -27,6 +28,7 @@ impl MessageType {
             MessageType::Bitfield => 5,
             MessageType::Request => 6,
             MessageType::Piece => 7,
+            MessageType::Cancel => 8,
             MessageType::KeepAlive => 255,      // meaningless value that must not be used
         }
     }
@@ -43,6 +45,7 @@ impl MessageType {
             MessageType::Bitfield => 1,        // id
             MessageType::Request => 1 + 3 * 4, // id + index + begin + length
             MessageType::Piece => 1 + 2 * 4,   // id + index + begin
+            MessageType::Cancel => 1 + 3 * 4, // id + index + begin + length
         }
     }
 }

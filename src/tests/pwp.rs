@@ -5,7 +5,7 @@ pub mod unittest {
             from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
             MandatoryBitTorrentMessageFields, MessageType, NotInterested, Piece, Request, Unchoke,
         },
-        Choke, KeepAlive,
+        Choke, KeepAlive, Cancel,
     };
     use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
@@ -293,6 +293,42 @@ pub mod unittest {
     }
 
     #[test]
+    pub fn cancel_message_into_bytes() {
+        let cancel_message_to_test = Cancel::new(1, 2, 3);
+        let expected_bytes = [0, 0, 0, 13, 8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3];
+        assert_eq!(cancel_message_to_test.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn cancel_message_from_bytes() {
+        let request_bytes = [0, 0, 0, 13, 8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3];
+        let request_message_to_test = Cancel::from_bytes(&request_bytes).unwrap().0;
+
+        let expected_request = Cancel::new(1, 2, 3);
+
+        assert_eq!(
+            request_message_to_test.message_length(),
+            expected_request.message_length()
+        );
+        assert_eq!(
+            request_message_to_test.message_type(),
+            expected_request.message_type()
+        );
+        assert_eq!(
+            request_message_to_test.piece_index(),
+            expected_request.piece_index()
+        );
+        assert_eq!(
+            request_message_to_test.begin_offset(),
+            expected_request.begin_offset()
+        );
+        assert_eq!(
+            request_message_to_test.piece_length(),
+            expected_request.piece_length()
+        );
+    }
+
+    #[test]
     pub fn identify_bitfield_message_type_from_bytes() {
         let bytes = read_bytes_from(&path_build_to_pwp_message("bitfield.bin"));
         let bitfield_message_type_to_test =
@@ -347,5 +383,12 @@ pub mod unittest {
         let bytes = [0, 0, 0, 1, 0];
         let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
         assert_eq!(message_type_to_test, MessageType::Choke);
+    }
+
+    #[test]
+    pub fn identify_cancel_message_type_from_bytes() {
+        let bytes = [0, 0, 0, 13, 8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3];
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Cancel);
     }
 }

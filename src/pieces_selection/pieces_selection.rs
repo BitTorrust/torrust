@@ -1,10 +1,5 @@
 use bit_vec::BitVec;
 use std::collections::{HashMap, VecDeque};
-<<<<<<< HEAD
-=======
-
-use crate::http::Peer;
->>>>>>> 1ae4ab3 (format)
 
 use super::PieceSelection;
 use crate::http::Peer;

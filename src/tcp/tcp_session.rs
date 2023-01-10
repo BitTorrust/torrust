@@ -89,7 +89,6 @@ impl TcpSession {
         let variable_length =
             self.parse_message_length(MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE as usize)? - 1;
         let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE
-            + MessageType::Bitfield.base_length()
             + variable_length;
 
         // Read the entire message from the buffer
@@ -104,7 +103,7 @@ impl TcpSession {
 
     fn parse_have_message(&self) -> Result<Option<Message>, Error> {
         // Get bytes size to read
-        let message_length = 4 + MessageType::Have.base_length();
+        let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Have.base_length();
 
         // Read the entire message from the buffer
         let have_bytes = self.read_buffer(message_length as usize)?;
@@ -265,7 +264,7 @@ impl TcpSession {
         }
 
         // PWP messages
-        // if not handshake, it is a pwp message
+        // if not handshake, it is probably a Peer Wire Protocol message
         match identity_first_message_type_of(&zero_to_fourth_read_bytes) {
             Ok(message) => self.parse_message(message),
             Err(error) => {

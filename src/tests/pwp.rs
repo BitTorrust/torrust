@@ -1,9 +1,12 @@
 #[cfg(test)]
 pub mod unittest {
-    use crate::{pwp::{
-        from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
-        MandatoryBitTorrentMessageFields, MessageType, NotInterested, Piece, Request, Unchoke,
-    }, KeepAlive};
+    use crate::{
+        pwp::{
+            from_bytes, Bitfield, FromBytes, Handshake, Have, Interested, IntoBytes,
+            MandatoryBitTorrentMessageFields, MessageType, NotInterested, Piece, Request, Unchoke,
+        },
+        Choke, KeepAlive,
+    };
     use bit_vec::BitVec;
     use std::{fs::File, io::Read, path::Path};
 
@@ -269,6 +272,27 @@ pub mod unittest {
     }
 
     #[test]
+    pub fn choke_message_into_bytes() {
+        let choke_message = Choke::new();
+        let expected_bytes = [0, 0, 0, 1, 0];
+        assert_eq!(choke_message.into_bytes(), expected_bytes);
+    }
+
+    #[test]
+    pub fn choke_message_from_bytes() {
+        let bytes = [0, 0, 0, 1, 0];
+        let choke_to_test = Choke::from_bytes(&bytes).unwrap().0;
+
+        let expected_choke = Choke::new();
+
+        assert_eq!(
+            choke_to_test.message_length(),
+            expected_choke.message_length()
+        );
+        assert_eq!(choke_to_test.message_type(), expected_choke.message_type());
+    }
+
+    #[test]
     pub fn identify_bitfield_message_type_from_bytes() {
         let bytes = read_bytes_from(&path_build_to_pwp_message("bitfield.bin"));
         let bitfield_message_type_to_test =
@@ -316,5 +340,12 @@ pub mod unittest {
         let bytes = read_bytes_from(&path_build_to_pwp_message("unchoke.bin"));
         let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
         assert_eq!(message_type_to_test, MessageType::Unchoke);
+    }
+
+    #[test]
+    pub fn identify_choke_message_type_from_bytes() {
+        let bytes = [0, 0, 0, 1, 0];
+        let message_type_to_test = from_bytes::identity_first_message_type_of(&bytes).unwrap();
+        assert_eq!(message_type_to_test, MessageType::Choke);
     }
 }

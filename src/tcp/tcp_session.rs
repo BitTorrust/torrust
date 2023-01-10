@@ -1,7 +1,10 @@
-use crate::{pwp::{
-    identity_first_message_type_of, Bitfield, FromBytes, Handshake, Have, Interested, MessageType,
-    NotInterested, Piece, Request, Unchoke,
-}, KeepAlive};
+use crate::{
+    pwp::{
+        identity_first_message_type_of, Bitfield, FromBytes, Handshake, Have, Interested,
+        MessageType, NotInterested, Piece, Request, Unchoke,
+    },
+    Choke, KeepAlive,
+};
 
 use {
     crate::{
@@ -197,13 +200,11 @@ impl TcpSession {
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::KeepAlive.base_length();
 
         // Read the entire message from the buffer
-        let not_interested_bytes = self.read_buffer(message_length as usize)?;
+        let keep_alive_bytes = self.read_buffer(message_length as usize)?;
 
-        // Create Interested message from bytes
-        match KeepAlive::from_bytes(&not_interested_bytes) {
-            Ok(not_interested_and_size) => {
-                Ok(Some(Message::KeepAlive(not_interested_and_size.0)))
-            }
+        // Create Keep-Alive message from bytes
+        match KeepAlive::from_bytes(&keep_alive_bytes) {
+            Ok(keep_alive_and_size) => Ok(Some(Message::KeepAlive(keep_alive_and_size.0))),
             Err(error) => return Err(error),
         }
     }
@@ -225,16 +226,32 @@ impl TcpSession {
         }
     }
 
+    fn parse_choke_message(&self) -> Result<Option<Message>, Error> {
+        // Get bytes size to read
+        let message_length =
+            MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Choke.base_length();
+
+        // Read the entire message from the buffer
+        let choke_bytes = self.read_buffer(message_length as usize)?;
+
+        // Create Choke message from bytes
+        match Choke::from_bytes(&choke_bytes) {
+            Ok(choke_and_size) => Ok(Some(Message::Choke(choke_and_size.0))),
+            Err(error) => return Err(error),
+        }
+    }
+
     fn parse_message(&self, message: MessageType) -> Result<Option<Message>, Error> {
         match message {
             MessageType::Bitfield => self.parse_bitfield_message(),
+            MessageType::Choke => self.parse_choke_message(),
             MessageType::Unchoke => self.parse_unchoke_message(),
             MessageType::Interested => self.parse_interested_message(),
             MessageType::NotInterested => self.parse_not_interested_message(),
             MessageType::Have => self.parse_have_message(),
             MessageType::Request => self.parse_request_message(),
             MessageType::Piece => self.parse_piece_message(),
-            MessageType::KeepAlive => self.parse_keep_alive_message(),          // never called
+            MessageType::KeepAlive => self.parse_keep_alive_message(), // never called
         }
     }
 

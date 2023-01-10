@@ -115,12 +115,16 @@ impl StateMachine {
         self.connect_to_tracker();
 
         loop {
+            if self.is_file_on_disk() {
+                break;
+            }
+
+            self.handle_current_downloads();
+
             if let Ok((peer, message)) = self.message_receiver.recv() {
                 log::debug!("Received message {:?} from {:?}", message, peer);
                 self.handle_messsage(peer, message);
             }
-
-            self.handle_current_downloads();
         }
     }
 
@@ -150,11 +154,6 @@ impl StateMachine {
     }
 
     fn handle_current_downloads(&mut self) {
-        // TODO: uncomment to support passive connections
-        if self.is_file_on_disk() {
-            return;
-        }
-
         let selector = DistributedSelector::pieces_selection(
             self.bitfield.clone(),
             self.peers_bitfield.clone(),
@@ -338,6 +337,7 @@ impl StateMachine {
                 piece.data(),
             )
             .unwrap();
+
         if let Some(blocks) = self.blocks_by_piece.get_mut(&piece.piece_index()) {
             *blocks = *blocks + 1;
             if *blocks
@@ -432,14 +432,13 @@ impl StateMachine {
             loop {
                 let maybe_response = self.send_tracker_request();
                 if let Ok(response) = maybe_response {
-                    // TODO: uncomment to support passive connections
                     if !(self.is_file_on_disk()) {
                         self.fill_peer_list(response.peers()).unwrap();
                     }
 
                     break;
                 } else {
-                    thread::sleep(Duration::from_millis(1000))
+                    thread::sleep(Duration::from_secs(1))
                 }
             }
         }
@@ -457,26 +456,20 @@ impl StateMachine {
         peers
     }
 
-    //  Operation
-    //  peer_bitfield AND !my_bitfield
-    // True => Interested
-    // False => NotInterested
+    // Operation
+    // peer_bitfield AND !my_bitfield
     fn is_peer_still_interesting(&self, peer: Peer) -> bool {
         let mut my_bitfield = self.bitfield.clone();
         my_bitfield.negate();
 
-        let peer_bitfield = self.peers_bitfield.get(&peer);
-        match peer_bitfield {
-            Some(peer_bitfield) => {
-                let maybe_interesting = peer_bitfield.clone().and(&my_bitfield);
-                maybe_interesting
-            }
-            _ => false,
-        }
+        let mut peer_bitfield = self.peers_bitfield.get(&peer).unwrap().clone();
+        peer_bitfield.and(&my_bitfield);
+
+        peer_bitfield.any()
     }
 
     fn finish_download_with_peer(&mut self, peer: Peer) {
-        log::info!("Peer {:?} sent all the pieces we needed from him", peer);
+        log::info!("Peer {:?} sent all the pieces we needed from it.", peer);
         self.send_not_interested_message(peer);
         self.seeder_peers
             .insert(peer, MyLeecherState::NotInterestedAndUnchoked);
@@ -583,7 +576,7 @@ impl StateMachine {
                     }
                     self.seeder_peers.insert(*peer, MyLeecherState::Unconnected);
                 }
-                log::debug!("seeding peers: {:?}", self.seeder_peers);
+                log::debug!("Seeding peers: {:?}", self.seeder_peers);
             }
 
             None => {

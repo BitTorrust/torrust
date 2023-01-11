@@ -66,6 +66,8 @@ pub enum Error {
     FailedToCloneSocketHandle,
     FailedToSetSocketAsNonBlocking,
     FailedToSetSocketWriteTimeout,
+    FailedToPeekData,
+    NotEnoughBytesToRead,
 
     // File management error
     DirectoryDoesNotExist,

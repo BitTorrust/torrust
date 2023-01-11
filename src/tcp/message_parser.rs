@@ -35,13 +35,17 @@ impl MessageParser {
         )?;
         let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + variable_length;
 
-        // Read the entire message from the buffer
-        let bitfield_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Bitfield message from bytes
-        match Bitfield::from_bytes(&bitfield_bytes) {
-            Ok(bitfield_and_size) => Ok(Some(Message::Bitfield(bitfield_and_size.0))),
-            Err(error) => Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(bitfield_bytes) => {
+                // Create Bitfield message from bytes
+                match Bitfield::from_bytes(&bitfield_bytes) {
+                    Ok(bitfield_and_size) => Ok(Some(Message::Bitfield(bitfield_and_size.0))),
+                    Err(error) => Err(error),
+                }
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -50,13 +54,17 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Have.base_length();
 
-        // Read the entire message from the buffer
-        let have_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Have message from bytes
-        match Have::from_bytes(&have_bytes) {
-            Ok(have_and_size) => Ok(Some(Message::Have(have_and_size.0))),
-            Err(error) => Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(have_bytes) => {
+                // Create Have message from bytes
+                match Have::from_bytes(&have_bytes) {
+                    Ok(have_and_size) => Ok(Some(Message::Have(have_and_size.0))),
+                    Err(error) => Err(error),
+                }
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -65,13 +73,17 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Request.base_length();
 
-        // Read the entire message from the buffer
-        let request_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Request message from bytes
-        match Request::from_bytes(&request_bytes) {
-            Ok(request_and_size) => Ok(Some(Message::Request(request_and_size.0))),
-            Err(error) => Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(request_bytes) => {
+                // Create Request message from bytes
+                match Request::from_bytes(&request_bytes) {
+                    Ok(request_and_size) => Ok(Some(Message::Request(request_and_size.0))),
+                    Err(error) => Err(error),
+                }
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -83,13 +95,17 @@ impl MessageParser {
         )?;
         let message_length = MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + variable_length;
 
-        // Read the entire message from the buffer
-        let piece_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Piece message from bytes
-        match Piece::from_bytes(&piece_bytes) {
-            Ok(piece_and_size) => Ok(Some(Message::Piece(piece_and_size.0))),
-            Err(error) => Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(piece_bytes) => {
+                // Create Piece message from bytes
+                match Piece::from_bytes(&piece_bytes) {
+                    Ok(piece_and_size) => Ok(Some(Message::Piece(piece_and_size.0))),
+                    Err(error) => Err(error),
+                }
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -97,15 +113,19 @@ impl MessageParser {
         // Get bytes size to read
         let message_length = Handshake::HANDSHAKE_VERSION_1_MESSAGE_LENGTH;
 
-        // Read the entire message from the buffer
-        let handshake_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Handshake message from bytes
-        let handshake = match Handshake::from_bytes(&handshake_bytes) {
-            Ok(handshake_and_size) => handshake_and_size.0,
-            Err(error) => return Err(error),
-        };
-        Ok(Some(Message::Handshake(handshake)))
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(handshake_bytes) => {
+                // Create Handshake message from bytes
+                let handshake = match Handshake::from_bytes(&handshake_bytes) {
+                    Ok(handshake_and_size) => handshake_and_size.0,
+                    Err(error) => return Err(error),
+                };
+                Ok(Some(Message::Handshake(handshake)))
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     fn parse_unchoke_message(tcp_session: &TcpSession) -> Result<Option<Message>, Error> {
@@ -113,13 +133,17 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Unchoke.base_length();
 
-        // Read the entire message from the buffer
-        let unchoke_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Unchoke message from bytes
-        match Unchoke::from_bytes(&unchoke_bytes) {
-            Ok(unchoke_and_size) => Ok(Some(Message::Unchoke(unchoke_and_size.0))),
-            Err(error) => return Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(unchoke_bytes) => {
+                // Create Unchoke message from bytes
+                match Unchoke::from_bytes(&unchoke_bytes) {
+                    Ok(unchoke_and_size) => Ok(Some(Message::Unchoke(unchoke_and_size.0))),
+                    Err(error) => return Err(error),
+                }
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -128,13 +152,17 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Interested.base_length();
 
-        // Read the entire message from the buffer
-        let interested_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Interested message from bytes
-        match Interested::from_bytes(&interested_bytes) {
-            Ok(interested_and_size) => Ok(Some(Message::Interested(interested_and_size.0))),
-            Err(error) => return Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(interested_bytes) => {
+                // Create Interested message from bytes
+                match Interested::from_bytes(&interested_bytes) {
+                    Ok(interested_and_size) => Ok(Some(Message::Interested(interested_and_size.0))),
+                    Err(error) => return Err(error),
+                }
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -143,13 +171,17 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::KeepAlive.base_length();
 
-        // Read the entire message from the buffer
-        let keep_alive_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Keep-Alive message from bytes
-        match KeepAlive::from_bytes(&keep_alive_bytes) {
-            Ok(keep_alive_and_size) => Ok(Some(Message::KeepAlive(keep_alive_and_size.0))),
-            Err(error) => return Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(keep_alive_bytes) => {
+                // Create Keep-Alive message from bytes
+                match KeepAlive::from_bytes(&keep_alive_bytes) {
+                    Ok(keep_alive_and_size) => Ok(Some(Message::KeepAlive(keep_alive_and_size.0))),
+                    Err(error) => return Err(error),
+                }
+            }
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -158,15 +190,17 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::NotInterested.base_length();
 
-        // Read the entire message from the buffer
-        let not_interested_bytes = tcp_session.read_buffer(message_length as usize)?;
-
-        // Create Interested message from bytes
-        match NotInterested::from_bytes(&not_interested_bytes) {
-            Ok(not_interested_and_size) => {
-                Ok(Some(Message::NotInterested(not_interested_and_size.0)))
-            }
-            Err(error) => return Err(error),
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            // Create NotInterested message from bytes
+            Ok(not_interested_bytes) => match NotInterested::from_bytes(&not_interested_bytes) {
+                Ok(not_interested_and_size) => {
+                    Ok(Some(Message::NotInterested(not_interested_and_size.0)))
+                }
+                Err(error) => return Err(error),
+            },
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -175,13 +209,18 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Choke.base_length();
 
-        // Read the entire message from the buffer
-        let choke_bytes = tcp_session.read_buffer(message_length as usize)?;
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(choke_bytes) => {
+                // Create Choke message from bytes
+                match Choke::from_bytes(&choke_bytes) {
+                    Ok(choke_and_size) => Ok(Some(Message::Choke(choke_and_size.0))),
+                    Err(error) => return Err(error),
+                }
+            }
 
-        // Create Choke message from bytes
-        match Choke::from_bytes(&choke_bytes) {
-            Ok(choke_and_size) => Ok(Some(Message::Choke(choke_and_size.0))),
-            Err(error) => return Err(error),
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -190,13 +229,18 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Request.base_length();
 
-        // Read the entire message from the buffer
-        let cancel_bytes = tcp_session.read_buffer(message_length as usize)?;
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(cancel_bytes) => {
+                // Create Cancel message from bytes
+                match Cancel::from_bytes(&cancel_bytes) {
+                    Ok(cancel_and_size) => Ok(Some(Message::Cancel(cancel_and_size.0))),
+                    Err(error) => Err(error),
+                }
+            }
 
-        // Create Cancel message from bytes
-        match Cancel::from_bytes(&cancel_bytes) {
-            Ok(cancel_and_size) => Ok(Some(Message::Cancel(cancel_and_size.0))),
-            Err(error) => Err(error),
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -205,13 +249,18 @@ impl MessageParser {
         let message_length =
             MessageType::PWP_MESSAGE_LENGTH_FIELD_SIZE + MessageType::Port.base_length();
 
-        // Read the entire message from the buffer
-        let port_bytes = tcp_session.read_buffer(message_length as usize)?;
+        // Tries to read the entire message from the buffer
+        match tcp_session.read_buffer(message_length as usize) {
+            Ok(port_bytes) => {
+                // Create Port message from bytes
+                match Port::from_bytes(&port_bytes) {
+                    Ok(port_and_size) => Ok(Some(Message::Port(port_and_size.0))),
+                    Err(error) => Err(error),
+                }
+            }
 
-        // Create Port message from bytes
-        match Port::from_bytes(&port_bytes) {
-            Ok(port_and_size) => Ok(Some(Message::Port(port_and_size.0))),
-            Err(error) => Err(error),
+            Err(Error::NotEnoughBytesToRead) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 

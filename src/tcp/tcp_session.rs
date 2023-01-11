@@ -64,12 +64,21 @@ impl TcpSession {
     }
 
     pub fn read_buffer(&self, size: usize) -> Result<Vec<u8>, Error> {
-        let mut bytes: Vec<u8> = Vec::new();
-        bytes.resize(size as usize, 0);
-        self.stream()
-            .read(&mut bytes)
-            .map_err(|_| Error::FailedToReadFromSocket)?;
-        Ok(bytes)
+        let mut bytes = vec![0u8; size];
+        let bytes_peeked = self
+            .stream()
+            .peek(&mut bytes)
+            .map_err(|_| Error::FailedToPeekData)?;
+
+        if bytes_peeked == size {
+            self.stream()
+                .read(&mut bytes)
+                .map_err(|_| Error::FailedToReadFromSocket)?;
+
+            Ok(bytes)
+        } else {
+            Err(Error::NotEnoughBytesToRead)
+        }
     }
 
     /// Write the received bytes in the buffer

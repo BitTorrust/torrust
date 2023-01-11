@@ -1,9 +1,6 @@
 use crate::{
-    pwp::{
-        identity_first_message_type_of, Bitfield, FromBytes, Handshake, Have, Interested,
-        MessageType, NotInterested, Piece, Request, Unchoke,
-    },
-    Choke, KeepAlive,
+    pwp::{identity_first_message_type_of, Handshake},
+    KeepAlive,
 };
 
 use super::MessageParser;

@@ -6,14 +6,13 @@ pub mod user_case {
             Bitfield, Handshake, Interested, MandatoryBitTorrentMessageFields, Message,
             MessageType, Request,
         },
-        state_machine::identity::generate_random_identity,
         tcp::TcpSession,
         tests::pwp::unittest::{path_build_to_pwp_message, read_bytes_from},
         BlockReaderWriter, Torrent,
     };
     use core::panic;
     use std::{
-        fs::{self, File},
+        fs::File,
         io::{self, Read},
         net::{IpAddr, Ipv4Addr, SocketAddr},
         path::Path,

@@ -77,7 +77,6 @@ impl StateMachine {
         let tcp_handler = TcpHandler::new(message_sender);
         let bitfield = local_bitfield(&torrent, working_directory);
         let bitfield_length = bitfield.len();
-
         let filename;
         if working_directory.is_dir() {
             filename = working_directory.join(torrent.name());
@@ -375,13 +374,13 @@ impl StateMachine {
             *blocks = *blocks + 1;
 
             let expected_blocks_in_piece =
-                torrent::expected_blocks_in_piece(piece.piece_index(), &self.torrent) - 1;
+                torrent::expected_blocks_in_piece(piece.piece_index(), &self.torrent);
 
             if *blocks == expected_blocks_in_piece {
                 self.bitfield.set(piece.piece_index() as usize, true);
             }
         } else {
-            self.blocks_by_piece.insert(piece.piece_index(), 0);
+            self.blocks_by_piece.insert(piece.piece_index(), 1);
         }
     }
 

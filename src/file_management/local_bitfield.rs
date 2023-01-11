@@ -35,7 +35,7 @@ fn read_pieces_from_disk(torrent: &Torrent, working_dir: &Path) -> Vec<Vec<u8>> 
 
         let blocks_per_piece = torrent::expected_blocks_in_piece(piece_id, torrent);
 
-        for block_id in 0..(blocks_per_piece - 1) {
+        for block_id in 0..blocks_per_piece {
             let maybe_block = reader_writer.read(
                 piece_id as u32,
                 block_id as u32 * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,

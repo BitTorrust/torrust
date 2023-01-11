@@ -388,8 +388,20 @@ impl StateMachine {
                     self.send_piece(peer, request)
                 }
             }
+            Message::Have(_) => {
+                log::warn!(
+                    "Received {:?}, but support for Have messages is not yet implemented.",
+                    message
+                );
+            }
+            Message::NotInterested(_) => {
+                log::warn!(
+                    "Received {:?} but support for NotInterested messages is not yet implemented.",
+                    message
+                );
+            }
             _ => log::warn!(
-                "Unexpected message {:?}, waiting for request, have, or not interested messages",
+                "Unexpected message {:?}, waiting for Request, Have, or Not Interested messages",
                 message
             ),
         }

@@ -10,7 +10,6 @@ pub struct KeepAlive {
 }
 
 impl KeepAlive {
-    const FALSE_KEEPALIVE_ID: u8 = 255;
     pub fn new() -> KeepAlive {
         KeepAlive {
             message_length: MessageType::KeepAlive.base_length(),

@@ -286,31 +286,21 @@ impl StateMachine {
             return;
         }
 
-        let blocks_per_piece = torrent::div_ceil(
-            self.torrent.piece_length_in_bytes(),
-            BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
-        );
+        let blocks_per_piece = torrent::expected_blocks_in_piece(piece_index, &self.torrent) as u32;
 
         for block in 0..blocks_per_piece {
-            let is_last_piece = piece_index as u32 == (self.torrent.number_of_pieces() - 1);
-            let is_last_block = block == blocks_per_piece - 1;
-            let length = if is_last_piece && is_last_block {
-                self.torrent.total_length_in_bytes()
-                    % BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
-            } else {
-                BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
-            };
+            let block_length = torrent::expected_block_length(piece_index, block, &self.torrent);
 
             let request = Request::new(
                 piece_index as u32,
-                block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
-                length,
+                block as u32 * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
+                block_length,
             );
 
-            log::info!(
-                "Requesting piece {:?}@0x{:x} to {:?}",
+            log::debug!(
+                "Requesting block 0x{:x} from piece {:?} to {:?}",
+                block as u32 * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
                 piece_index,
-                block * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
                 peer
             );
 

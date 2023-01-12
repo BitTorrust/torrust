@@ -184,3 +184,16 @@ pub fn expected_blocks_in_piece(piece_index: u32, torrent: &Torrent) -> usize {
         }
     }
 }
+
+pub fn expected_block_length(piece_index: u32, block_index: u32, torrent: &Torrent) -> u32 {
+    let blocks_per_piece = expected_blocks_in_piece(piece_index, torrent) as u32;
+
+    let is_last_piece = piece_index == torrent.number_of_pieces() - 1;
+    let is_last_block = block_index == blocks_per_piece - 1;
+
+    if is_last_piece && is_last_block {
+        torrent.total_length_in_bytes() % BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+    } else {
+        BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32
+    }
+}

@@ -56,7 +56,7 @@ enum MySeederState {
     InterestingAndUnchoking,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum MyLeecherState {
     //Download states
     Unconnected,
@@ -213,18 +213,24 @@ impl StateMachine {
 
                 self.seeder_peers.insert(peer, MyLeecherState::NotInterestedAndChoked);
                 self.leecher_peers.insert(peer, MySeederState::NotInterestingAndChoking);
-
                 self.peers_bitfield.insert(peer,message.bitfield().clone());
-                if self.peers_bitfield.len() == self.seeder_peers.len() {
-                    log::info!("All bitfields received");
+
+                if self.missing_bitfields() == 0 {
+                    log::info!("All expected bitfields received");
                     self.handle_all_bitfields();
                 } else {
-                    let missing_bitfields = self.seeder_peers.len() - self.peers_bitfield.len();
-                    log::info!("Waiting for missing {} bitfields", missing_bitfields);
+                    log::info!("Waiting for missing {} bitfields", self.missing_bitfields());
                 }
             },
             _ => log::warn!("Unexpected message from peer {:?}, waiting for Handshake response or Bitfield message", peer)
         }
+    }
+
+    fn missing_bitfields(&self) -> usize {
+        self.seeder_peers
+            .values()
+            .filter(|state| **state == MyLeecherState::WaitingBitfield)
+            .count()
     }
 
     fn handle_unchoke(&mut self, peer: Peer, message: Message) {

@@ -297,7 +297,7 @@ impl StateMachine {
                 block_length,
             );
 
-            log::info!(
+            log::debug!(
                 "Requesting block 0x{:x} from piece {:?} to {:?}",
                 block as u32 * BlockReaderWriter::BIT_TORRENT_BLOCK_SIZE as u32,
                 piece_index,

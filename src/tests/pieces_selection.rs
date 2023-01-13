@@ -9,7 +9,7 @@ pub mod unittest {
 
     use crate::{
         http::Peer,
-        pieces_selection::{simple_selection::SimpleSelector, PiecesSelection},
+        pieces_selection::{simple_selection::SimpleSelector, PieceSelection, PiecesSelection},
     };
 
     #[test]
@@ -24,12 +24,12 @@ pub mod unittest {
         peers_bitfields.insert(seeder, seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::new();
-        let selection: HashMap<u32, Option<Peer>> =
-            SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
+        let selection = SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
 
-        let mut expected_selection: HashMap<u32, Option<Peer>> = HashMap::new();
+        let mut expected_selection = Vec::new();
         for piece_id in 0..bitfield_length {
-            expected_selection.insert(piece_id as u32, Some(seeder));
+            let piece_selection = PieceSelection::new(piece_id as u32, seeder);
+            expected_selection.push(piece_selection);
         }
 
         assert_eq!(selection, expected_selection);
@@ -64,17 +64,19 @@ pub mod unittest {
         peers_bitfields.insert(second_part_seeder, second_part_seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
-        let selection: HashMap<u32, Option<Peer>> =
-            SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
+        let mut selection = SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
 
-        let mut expected_selection: HashMap<u32, Option<Peer>> = HashMap::new();
+        let mut expected_selection = Vec::new();
         for piece_id in 0..5 {
-            expected_selection.insert(piece_id as u32, Some(first_part_seeder));
+            let piece_selection = PieceSelection::new(piece_id, first_part_seeder);
+            expected_selection.push(piece_selection);
         }
         for piece_id in 5..bitfield_length {
-            expected_selection.insert(piece_id as u32, Some(second_part_seeder));
+            let piece_selection = PieceSelection::new(piece_id as u32, second_part_seeder);
+            expected_selection.push(piece_selection);
         }
 
+        selection.sort();
         assert_eq!(selection, expected_selection);
     }
 
@@ -101,28 +103,26 @@ pub mod unittest {
         peers_bitfields.insert(second_part_seeder, second_part_seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
-        let selection: HashMap<u32, Option<Peer>> =
-            SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
+        let selection = SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
 
-        let mut expected_selection: HashMap<u32, Option<Peer>> = HashMap::new();
+        let mut expected_selection = Vec::new();
         for piece_id in 0..5 {
-            expected_selection.insert(piece_id as u32, Some(first_part_seeder));
+            let piece_selection = PieceSelection::new(piece_id as u32, first_part_seeder);
+            expected_selection.push(piece_selection);
         }
         for piece_id in 5..bitfield_length {
-            expected_selection.insert(piece_id as u32, Some(second_part_seeder));
+            let piece_selection = PieceSelection::new(piece_id as u32, second_part_seeder);
+            expected_selection.push(piece_selection);
         }
 
-        for (piece_id, maybe_peer) in &selection {
-            match piece_id {
+        for piece_selection in selection.iter() {
+            match piece_selection.piece_id() {
                 0..=1 => {
-                    assert_eq!(maybe_peer.unwrap(), first_part_seeder);
+                    assert_eq!(piece_selection.peer(), first_part_seeder);
                 }
-                2 => match maybe_peer {
-                    Some(_) => assert!(true),
-                    None => assert!(false),
-                },
+                2 => assert!(true),
                 3 => {
-                    assert_eq!(maybe_peer.unwrap(), second_part_seeder);
+                    assert_eq!(piece_selection.peer(), second_part_seeder);
                 }
                 _ => (),
             }
@@ -145,22 +145,18 @@ pub mod unittest {
 
         let mut mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
         mybitfield.set(0, true);
-        let selection: HashMap<u32, Option<Peer>> =
-            SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
+        let selection = SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
 
         let mut expected_selection: HashMap<u32, Option<Peer>> = HashMap::new();
         for piece_id in 0..5 {
             expected_selection.insert(piece_id as u32, Some(seeder));
         }
 
-        for (piece_id, maybe_peer) in &selection {
-            match piece_id {
-                0 => match maybe_peer {
-                    Some(_) => assert!(false),
-                    None => assert!(true), // we already have the 0-indexed piece
-                },
+        for piece_selection in selection.iter() {
+            match piece_selection.piece_id() {
+                0 => assert!(true),
                 1..=3 => {
-                    assert_eq!(maybe_peer.unwrap(), seeder);
+                    assert_eq!(piece_selection.peer(), seeder);
                 }
                 _ => (),
             }
@@ -182,22 +178,18 @@ pub mod unittest {
         peers_bitfields.insert(seeder, seeder_bitfield);
 
         let mybitfield: BitVec = BitVec::from_elem(bitfield_length, false);
-        let selection: HashMap<u32, Option<Peer>> =
-            SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
+        let selection = SimpleSelector::pieces_selection(mybitfield, peers_bitfields);
 
         let mut expected_selection: HashMap<u32, Option<Peer>> = HashMap::new();
         for piece_id in 0..5 {
             expected_selection.insert(piece_id as u32, Some(seeder));
         }
 
-        for (piece_id, maybe_peer) in &selection {
-            match piece_id {
-                0 => match maybe_peer {
-                    Some(_) => assert!(false),
-                    None => assert!(true), // the 0-indexed piece is missing for all peers
-                },
+        for piece_selection in selection.iter() {
+            match piece_selection.piece_id() {
+                0 => assert!(false),
                 1..=3 => {
-                    assert_eq!(maybe_peer.unwrap(), seeder);
+                    assert_eq!(piece_selection.peer(), seeder);
                 }
                 _ => (),
             }

@@ -9,9 +9,10 @@ pub trait PiecesSelection {
     fn pieces_selection(
         mybitfield: BitVec,
         peers_bitfields: HashMap<Peer, BitVec>,
-    ) -> HashMap<u32, Option<Peer>>;
+    ) -> Vec<PieceSelection>;
 }
 
+// TODO: delete this and use PiecesSelection instead.
 pub trait PriorityPiecesSelection {
     fn priority_pieces_selection(
         mybitfield: BitVec,

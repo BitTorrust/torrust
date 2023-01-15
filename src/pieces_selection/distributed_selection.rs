@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use bit_vec::BitVec;
 
-use crate::{
-    http::Peer,
-    pieces_selection::{PieceSelection, PiecesSelection},
+use {
+    crate::{
+        http::Peer,
+        pieces_selection::{PieceSelection, PiecesSelection},
+    },
+    rand::{seq::SliceRandom, thread_rng},
 };
 
 #[derive(Debug)]
@@ -47,6 +50,7 @@ impl PiecesSelection for DistributedSelector {
                 }
             });
 
+        target_peers.shuffle(&mut thread_rng());
         target_peers
     }
 }

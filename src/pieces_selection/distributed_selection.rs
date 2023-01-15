@@ -2,7 +2,13 @@ use std::collections::HashMap;
 
 use bit_vec::BitVec;
 
-use crate::{http::Peer, pieces_selection::PiecesSelection};
+use {
+    crate::{
+        http::Peer,
+        pieces_selection::{PieceSelection, PiecesSelection},
+    },
+    rand::{seq::SliceRandom, thread_rng},
+};
 
 #[derive(Debug)]
 pub struct DistributedSelector;
@@ -21,8 +27,8 @@ impl PiecesSelection for DistributedSelector {
     fn pieces_selection(
         mybitfield: BitVec,
         peers_bitfields: HashMap<Peer, BitVec>,
-    ) -> HashMap<u32, Option<Peer>> {
-        let mut peer_by_piece: HashMap<u32, Option<Peer>> = HashMap::new();
+    ) -> Vec<PieceSelection> {
+        let mut target_peers = Vec::new();
         let mut index_to_use = 0;
 
         mybitfield
@@ -38,11 +44,13 @@ impl PiecesSelection for DistributedSelector {
 
                 if peers_having_this_piece.len() != 0 {
                     index_to_use = (index_to_use + 1) % peers_having_this_piece.len();
-                    let peer_to_use = Some(peers_having_this_piece[index_to_use].clone());
-                    peer_by_piece.insert(piece as u32, peer_to_use);
+                    let peer_to_use = peers_having_this_piece[index_to_use].clone();
+
+                    target_peers.push(PieceSelection::new(piece as u32, peer_to_use));
                 }
             });
 
-        peer_by_piece
+        target_peers.shuffle(&mut thread_rng());
+        target_peers
     }
 }

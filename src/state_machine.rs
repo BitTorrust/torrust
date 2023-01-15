@@ -2,12 +2,13 @@ use {
     crate::{
         error::Error,
         file_management::local_bitfield,
-        http::Peer,
-        http::{TrackerAddress, TrackerRequest},
+        http::{Peer, TrackerAddress, TrackerRequest, TrackerResponse},
+        pieces_selection::{DistributedSelector, PieceSelection, PiecesSelection},
         pwp::{
             Bitfield, Handshake, Have, Interested, Message, NotInterested, Piece, Request, Unchoke,
         },
         torrent::{self, Torrent},
+        BlockReaderWriter,
     },
     crossbeam_channel::Receiver,
     std::path::PathBuf,
@@ -25,12 +26,6 @@ pub use wait::Wait;
 
 pub(crate) mod identity;
 use identity::generate_random_identity;
-
-use crate::{
-    http::TrackerResponse,
-    pieces_selection::{DistributedSelector, PiecesSelection},
-    BlockReaderWriter,
-};
 
 #[derive(Debug)]
 pub struct StateMachine {
@@ -273,15 +268,15 @@ impl StateMachine {
         }
     }
 
-    fn request_pieces(&mut self, peer: Peer, selector: &HashMap<u32, Option<Peer>>) {
+    fn request_pieces(&mut self, peer: Peer, selector: &[PieceSelection]) {
         let mut pieces_to_request = 1;
 
         selector
             .iter()
-            .filter(|(_, maybe_peer)| *maybe_peer == &Some(peer))
-            .for_each(|(piece, peer)| {
+            .filter(|piece_selection| piece_selection.peer() == peer)
+            .for_each(|piece_selection| {
                 if pieces_to_request > 0 {
-                    self.request_piece(*piece, peer.unwrap());
+                    self.request_piece(piece_selection.piece_id(), piece_selection.peer());
                     pieces_to_request -= 1;
                 }
             });

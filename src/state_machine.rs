@@ -224,10 +224,7 @@ impl StateMachine {
     }
 
     fn missing_bitfields(&self) -> usize {
-        self.seeder_peers
-            .values()
-            .filter(|state| **state == MyLeecherState::WaitingBitfield)
-            .count()
+        self.seeder_peers.len() - self.peers_bitfield.len()
     }
 
     fn handle_unchoke(&mut self, peer: Peer, message: Message) {
@@ -405,16 +402,17 @@ impl StateMachine {
     }
 
     fn send_interested_messages(&mut self) {
+        log::debug!("peers_bitfield {:?}", self.peers_bitfield);
         self.peers_bitfield
             .clone()
             .into_iter()
             .for_each(|(peer, peer_bitfield)| {
                 let interesting_pieces = self.interesting_pieces(peer_bitfield);
-
                 if interesting_pieces.any() {
                     self.send_interested_message(peer.clone());
                     self.seeder_peers
                         .insert(peer, MyLeecherState::InterestedAndChoked);
+                    log::info!("Send interested messages, peer: {:?}", peer);
                 }
             })
     }

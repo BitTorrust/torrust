@@ -66,6 +66,7 @@ enum MyLeecherState {
 
 impl StateMachine {
     pub const CLIENT_PORT: u16 = 6882;
+    pub const CLIENT_IP_PORT: &str = "192.168.0.1:6882";
 
     pub fn new(torrent: Torrent, working_directory: &PathBuf, mock_peers: bool) -> Self {
         let (message_sender, message_receiver) = crossbeam_channel::unbounded();
@@ -421,7 +422,7 @@ impl StateMachine {
         let peers = self.peers_to_connect();
 
         for peer in peers {
-            if peer.socket_address() == "127.0.0.1:6882" {
+            if peer.socket_address() == Self::CLIENT_IP_PORT {
                 log::warn!("Skipping connection to ourselves.");
                 continue;
             }
@@ -604,7 +605,7 @@ impl StateMachine {
         match tracker_peer_list {
             Some(peers) => {
                 for peer in peers {
-                    if peer.socket_address() == "127.0.0.1:6882" {
+                    if peer.socket_address() == Self::CLIENT_IP_PORT {
                         log::warn!("Not adding ourselves to the peer list.");
                         continue;
                     }

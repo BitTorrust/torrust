@@ -143,7 +143,9 @@ impl StateMachine {
                 self.handle_interested(peer, message)
             }
             (_, Some(MySeederState::InterestingAndUnchoking)) => self.handle_request(peer, message),
-            _ => unimplemented!(),
+            _ => {
+                log::warn!("Message {:?} received, but we were not expecting it. Download state: {:?} | Upload state: {:?}", message, peer_download_state, peer_upload_state);
+            }
         }
     }
 

@@ -59,7 +59,6 @@ Options:
 ```
 ## Performance Tests 
 
-<!-- ¿Is necessary to test other file rather than 1Gbit.torrent? -->
 **Test Torrust as leecher with one client**
 
 
@@ -71,7 +70,7 @@ As an option, the listening port could be forced if desired.
 ./scripts/one-seeder.sh <TORRENT_FILE> <WORKING_DIRECTORY> [LISTEN_PORT]
 ```
 
-2. Launch torrust with:
+2. Launch Torrust with:
 
 ```
 cargo run --release -- <TORRENT_FILE> <WORKING_DIRECTORY> [--info|--debug]
@@ -85,7 +84,7 @@ cargo run --release -- <TORRENT_FILE> <WORKING_DIRECTORY> [--info|--debug]
 ./scripts/tracker.sh
 ```
 
-2. Launch torrust with
+2. Launch Torrust with
 
 ```
 cargo run --release -- <TORRENT_FILE> <WORKING_DIRECTORY> [--info|--debug]
@@ -96,12 +95,16 @@ cargo run --release -- <TORRENT_FILE> <WORKING_DIRECTORY> [--info|--debug]
 4. At this moment Vuze will begin to download the file.
 
 
-**Test Torrust as leecher - multi clients**
+**Test Torrust as leecher with multiple aria2c clients**
 
-1. Go to the ./scripts/multi-client directory
-2. launch ./partial.sh to configure the different file parts each aria will have
+On this test, each aria2c will have a percentage of the file that the client will
+download from them. There is no tracker involved on this test, the ports of each 
+aria client are hardcoded on the script and on Torrust.
 
-3. Launch the script named multi-seeders-iceberg.sh with the follow parameters
+1. Go to the `./scripts/multi-client` directory
+2. Launch `./partial.sh` to configure the different file parts each aria will have
+
+3. Launch the script named `multi-seeders-iceberg.sh` saved on the `./scripts` folder with the follow parameters
 
 ```
 ./scripts/multi-seeders-iceberg.sh <TORRENT_FILE> <WORKING_DIRECTORY> <WORKING_DIR_ARIAS>
@@ -111,7 +114,8 @@ Arguments:
   <WORKING_DIRECTORY>  The download path to store/upload the file described in .torrent
   <WORKING_DIR_ARIAS>  The folder where are contained the aria subfolders, normally, it will be the /multi-client folder.
 ```
-
+There is no tracker involved on this test, the ports of each aria client are hardcoded on the script.
+Also, the hardcoded ports of each aria client are used on Torrust when we indicate the flag `--mock` 
 
 
 

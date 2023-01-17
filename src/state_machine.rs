@@ -66,7 +66,7 @@ enum MyLeecherState {
 
 impl StateMachine {
     pub const CLIENT_PORT: u16 = 6882;
-    pub const CLIENT_IP_PORT: &str = "192.168.0.1:6882";
+    pub const CLIENT_IP_PORT: &str = "127.0.0.1:6882";
 
     pub fn new(torrent: Torrent, working_directory: &PathBuf, mock_peers: bool) -> Self {
         let (message_sender, message_receiver) = crossbeam_channel::unbounded();

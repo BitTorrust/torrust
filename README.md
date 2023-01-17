@@ -65,7 +65,7 @@ Options:
 1. Launch the script `one-seeder.sh`. 
 
 The script will launch aria as seeder with the respective `torrent file` and the `working directory` where is stored the file to upload.
-As an option, the listening port could be forced if desired.  
+As an option, the listening port could be forced if desired.
 ```
 ./scripts/one-seeder.sh <TORRENT_FILE> <WORKING_DIRECTORY> [LISTEN_PORT]
 ```

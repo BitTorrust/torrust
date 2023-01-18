@@ -104,7 +104,7 @@ aria client are hardcoded on the script and on Torrust.
 1. Go to the `./scripts/multi-client` directory
 2. Launch `./partial.sh` to configure the different file parts each aria will have
 
-3. Launch the script named `multi-seeders-iceberg.sh` saved on the `./scripts` folder with the follow parameters
+3. Launch the script named `multi-seeders-iceberg.sh` saved on the `./scripts` folder with the following parameters
 
 ```
 ./scripts/multi-seeders-iceberg.sh <TORRENT_FILE> <WORKING_DIRECTORY> <WORKING_DIR_ARIAS>

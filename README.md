@@ -57,6 +57,67 @@ Options:
   -m, --mock   Communicate directly with three local peers using ports 2001, 2002 and 2003
   -h, --help   Print help information
 ```
+## Performance Tests 
+
+**Test Torrust as leecher with one client**
+
+
+1. Launch the script `one-seeder.sh`. 
+
+The script will launch aria as seeder with the respective `torrent file` and the `working directory` where is stored the file to upload.
+As an option, the listening port could be forced if desired.
+```
+./scripts/one-seeder.sh <TORRENT_FILE> <WORKING_DIRECTORY> [LISTEN_PORT]
+```
+
+2. Launch Torrust with:
+
+```
+cargo run --release -- <TORRENT_FILE> <WORKING_DIRECTORY> [--info|--debug]
+```
+
+**Test Torrust as seeder**
+
+1. Launch the script `tracker.sh`
+
+```
+./scripts/tracker.sh
+```
+
+2. Launch Torrust with
+
+```
+cargo run --release -- <TORRENT_FILE> <WORKING_DIRECTORY> [--info|--debug]
+```
+
+3. Launch Vuze and open the torrent file
+
+4. At this moment Vuze will begin to download the file.
+
+
+**Test Torrust as leecher with multiple aria2c clients**
+
+On this test, each aria2c will have a percentage of the file that the client will
+download from them. There is no tracker involved on this test, the ports of each 
+aria client are hardcoded on the script and on Torrust.
+
+1. Go to the `./scripts/multi-client` directory
+2. Launch `./partial.sh` to configure the different file parts each aria will have
+
+3. Launch the script named `multi-seeders-iceberg.sh` saved on the `./scripts` folder with the following parameters
+
+```
+./scripts/multi-seeders-iceberg.sh <TORRENT_FILE> <WORKING_DIRECTORY> <WORKING_DIR_ARIAS>
+
+Arguments:
+  <TORRENT_FILE>       The .torrent file path
+  <WORKING_DIRECTORY>  The download path to store/upload the file described in .torrent
+  <WORKING_DIR_ARIAS>  The folder where are contained the aria subfolders, normally, it will be the /multi-client folder.
+```
+There is no tracker involved on this test, the ports of each aria client are hardcoded on the script.
+Also, the hardcoded ports of each aria client are used on Torrust when we indicate the flag `--mock` 
+
+
 
 ## Contact
 
